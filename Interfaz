@@ -1,0 +1,268 @@
+from ctypes.wintypes import SIZE
+from distutils.cmd import Command
+from turtle import screensize
+from typing import Self
+import cv2
+import tensorflow as tf
+import numpy as np
+import tkinter as tk
+import serial
+import time
+from tkinter import scrolledtext
+from tkinter import messagebox, ttk
+from tensorflow.keras.preprocessing import image
+from PIL import Image, ImageTk
+import serial.tools.list_ports
+# Cargar el modelo
+model = tf.keras.models.load_model(r'C:\Users\brand\source\repos\Python_objec\Python_objec\IA_submarino.h5')
+
+# Mapeo de clases
+class_names = ['Anguila', 'Ballena', 'Caballo de mar', 'Calamar', 'Camaron', 
+               'Cangrejo', 'Cocodrilo', 'Coral','Delphin', 'Erizo', 
+               'Estrella de mar', 'Foca','Langosta', 
+               'Mantarralla', 'Medusa', 'Nudibranchs','Nutria',
+               'Orca','Ostra', 'Pez grande', 
+               'Pez mediano', 'Pez chico', 'Pinguino', 'Pulpo', 
+               'Tiburon', 'Tortuga']
+
+class CameraApp:
+    def __init__(self, root):
+
+        self.root = root
+        self.root.title("Robot Submarino")
+        self.root.configure(bg='dark blue')  # Cambiar el color de fondo a azul
+        # Define el tamaño de la interfaz
+        self.root.geometry("1400x650")  # Ancho x Alto
+        #lineas de separacion
+        self.line_frame = tk.Frame(root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        # Label para el título
+        self.title_label = tk.Label(self.root, text="Robot Submarino", font=("Consolas", 24), bg='dark blue', fg='white')
+        self.title_label.pack(pady=10)
+        self.line_frame = tk.Frame(root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        self.title_sublabel = tk.Label(self.root, text="Tesis Robot Submarino Con Vicion Artificial", font=("Consolas", 24), bg='dark blue', fg='white')
+        self.title_sublabel.pack(pady=11)
+        #frame camara
+        self.line_frame = tk.Frame(root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        self.camera_frame = tk.Frame(self.root, bg='blue', width=700, height=500)  # Ajusta el tamaño según sea necesario
+        self.camera_frame.pack(side=tk.LEFT, padx=(10, 0), pady=(5,0))  # Llenar verticalmente
+        self.vertical_line = tk.Frame(root, bg='blue', width=10)
+        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)  # Separación a la derecha
+        # Label para mostrar la cámara
+        self.camera_label = tk.Label(self.camera_frame, bg='blue')
+        self.camera_label.pack()
+
+        # Label para mostrar datos 
+       
+        self.udc_label = tk.Label(self.root, text=" Univercidad de Colima ", font=("Consolas", 18), bg='dark blue', fg='white')
+        self.udc_label.pack(pady=10)
+        self.Fie_label = tk.Label(self.root, text=" Facultad de Ingenieria Electromecanica ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.Fie_label.pack(pady=10)
+        self.line_frame = tk.Frame(self.root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        def obtener_puertos_com():    
+            return [port.device for port in serial.tools.list_ports.comports()]
+        def conectar():
+            puerto = combo_puertos.get()
+            try:
+                # Intentar conectar al puerto COM
+                #puerto = 'COM6'
+                self.baud_rate = 115200
+                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
+                messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador.")
+        
+            except Exception as e:
+                # Mostrar un mensaje de error si no se puede conectar
+                messagebox.showerror("Error de conexion", "Ha ocurrido un error al conectar el microcontrolador.")
+
+        puertos_disponibles = obtener_puertos_com()
+        # Crear un combobox para seleccionar el puerto COM
+        # Crear un estilo para el combobox
+        estilo = ttk.Style()
+        estilo.configure("TCombobox",
+                         padding=5,
+                         relief="flat",
+                         background='blue',  # Color de fondo
+                         font=("Consolas", 12))
+        combo_puertos = ttk.Combobox(self.root, values=puertos_disponibles,  style="TCombobox")
+        combo_puertos.pack(pady=10, padx=10)
+        # Seleccionar automáticamente el primer puerto disponible, si existe
+        if puertos_disponibles:
+             combo_puertos.current(0)  # Seleccionar el primer puerto
+         #puerto
+        puerto = combo_puertos.get()
+        try:
+                # Intentar conectar al puerto COM
+                #puerto = 'COM6'
+                self.baud_rate = 115200
+                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
+                messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador Exitosamente.")
+        
+        except Exception as e:
+                # Mostrar un mensaje de error si no se puede conectar
+                messagebox.showerror("Error de conexion", "Ha ocurrido un error al conectar el microcontrolador.")
+
+        combo_puertos.bind("<Return>", conectar)
+        self.code_frame = tk.Frame(self.root, bg='dark blue')
+        self.code_frame.pack(pady=10)
+
+        # Text area para mostrar la predicción
+        self.baterialevel = tk.Label(self.code_frame, text="Nivel de bateria: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.baterialevel.pack(pady=10)
+        self.coneccionestado = tk.Label(self.code_frame, text="Estado de coneccion: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.coneccionestado.pack(pady=10)
+        self.profundidad = tk.Label(self.code_frame, text="Nivel de profundidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.profundidad.pack(pady=10)
+        self.prediction_label = tk.Label(self.code_frame, text="Prediccion: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.prediction_label.pack(pady=10)
+        self.line_frame = tk.Frame(self.root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        # Frame para los botones
+        button_frame = tk.Frame(root , bg='dark blue')
+        button_frame.pack(pady=10)
+
+        # boton lampara
+
+        self.encenderluz = tk.Button(button_frame,text="Iluminacion",command=self.toggle_color, font=("Consolas", 12),bg="yellow", fg="black", width=24, height=2,relief=tk.SUNKEN)
+        self.encenderluz.pack(side=tk.LEFT, padx=10) 
+
+        #boton motores
+        self.motores = tk.Button(button_frame,text="Motores Encendidos",command=self.toggle_color_motor, font=("Consolas", 12),bg="green", fg="black", width=24, height=2,relief=tk.SUNKEN)
+        self.motores.pack(side=tk.LEFT, padx=10) 
+        #boton motores
+        self.Automatico = tk.Button(button_frame,text="Modo Manual",command=self.toggle_color_manual, font=("Consolas", 12),bg="blue", fg="black", width=24, height=2,relief=tk.SUNKEN)
+        self.Automatico.pack(side=tk.LEFT, padx=10)
+
+        self.capture = None
+        self.running = False
+        self.read_serial()
+        self.start_camera()  # Iniciar la cámara automáticamente
+    def start_camera(self):
+        if self.running:
+            return
+        self.running = True
+        self.capture = cv2.VideoCapture(1)
+        self.update_camera()
+    
+    def read_serial(self): 
+        try:
+            if self.Ser.in_waiting > 0:
+                respuesta = self.Ser.readline().decode('utf-8').rstrip()
+                self.coneccionestado.config(text=f"Estado: {respuesta}")  # Actualiza el label al recibir
+            
+                # Extraer fragmentos separados por comas
+                fragmentos = respuesta.split(",")  # Dividir la cadena por comas
+            
+                # Asignar fragmentos a variables
+                if len(fragmentos) >= 3:  # Asegúrate de que hay suficientes fragmentos
+                    Eprofundidad, Econexion, Ebateria = fragmentos[0], fragmentos[1], fragmentos[2]
+                    # Actualiza el estado con los fragmentos
+                    self.coneccionestado.config(text=f"Estado de conexion: {Econexion}")
+                    self.baterialevel.config(text=f"Nivel de energia: {Ebateria} %")
+                    self.profundidad.config(text=f"Nivel de profundidad: {Eprofundidad} Metros")
+                    #self.coneccionestado.config(text=f"Estado: {Econexion}")
+                else:
+                    self.coneccionestado.config(text="No hay suficientes fragmentos.")
+
+        except Exception as e:
+          self.coneccionestado.config(text=f"Error: {e}")  # Muestra el error en el label
+
+        # Repite la lectura
+        self.root.after(10, self.read_serial)
+ 
+    def toggle_color(self):
+        # Cambia el color del botón
+        current_color = self.encenderluz.cget("bg")
+        new_color = "dark red" if current_color == "yellow" else "yellow"
+        self.encenderluz.config(bg=new_color)
+        if current_color == "dark red":
+            colortext= "black"
+            estadoboton = "Luz Encendida"
+            commando = "LON"
+        elif current_color == "yellow":
+           colortext= "white"
+           estadoboton = "Luz Apagada"
+           commando = "LOFF"
+        else: "dark red"
+        self.Ser.write(commando.encode())
+        self.encenderluz.config(text=estadoboton)
+        self.encenderluz.config(fg=colortext)
+    def toggle_color_motor(self):
+        # Cambia el color del botón
+        current_color = self.motores.cget("bg")
+        new_color = "green" if current_color == "blue" else "blue"
+        self.motores.config(bg=new_color)
+        if current_color == "blue":
+            colortext= "black"
+            estadoboton = "Motores Encendidos"
+            commandom = "MON"
+        elif current_color == "green":
+           colortext= "white"
+           estadoboton = "Motores Apagados"
+           commandom = "MOFF"
+        self.Ser.write(commandom.encode())
+        self.motores.config(text=estadoboton)
+        self.motores.config(fg=colortext)
+    def toggle_color_manual(self):
+        # Cambia el color del botón
+        current_color = self.Automatico.cget("bg")
+        new_color = "dark blue" if current_color == "blue" else "blue"
+        self.Automatico.config(bg=new_color)
+        if current_color == "dark blue":
+            colortext= "black"
+            estadoboton = "Modo control Manual"
+            commandoa = "MM"
+        elif current_color == "blue":
+           colortext= "white"
+           estadoboton = "Modo control Automatico"
+           commandoa = "MA"
+        else: "dark blue"
+        self.Ser.write(commandoa.encode())
+        self.Automatico.config(text=estadoboton)
+        self.Automatico.config(fg=colortext)
+    def update_camera(self):
+        if self.running and self.capture.isOpened():
+            ret, frame = self.capture.read()
+            if ret:
+                # Redimensionar la imagen para que coincida con la entrada del modelo
+                img_resized = cv2.resize(frame, (350, 350))
+                img_array = image.img_to_array(img_resized)
+                img_array = np.expand_dims(img_array, axis=0) / 255.0  # Normalizar y agregar dimensión del batch
+
+                # Hacer la predicción
+                predictions = model.predict(img_array)
+                predicted_class = np.argmax(predictions, axis=1)
+
+                # Verifica la confianza
+                if np.max(predictions) < 0.8:
+                    predicted_name = "Especie desconocida"
+                else:
+                    predicted_name = class_names[predicted_class[0]]
+
+                # Mostrar la predicción en el label
+                self.prediction_label.configure(text=f"Especie identificada: {predicted_name}  \n")
+
+                # Convertir a imagen para Tkinter
+                self.photo = tk.PhotoImage(data=cv2.imencode('.png', frame)[1].tobytes())
+                self.camera_label.configure(image=self.photo)
+                self.camera_label.image = self.photo
+
+            self.camera_label.after(10, self.update_camera)
+        else:
+            self.stop_camera()
+
+    def stop_camera(self):
+        if self.capture is not None:
+            self.capture.release()
+        self.running = False
+        if self.Ser.is_open:
+            self.Ser.close()
+        self.root.destroy()
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.config(menu='')  # Quitar el menú
+    app = CameraApp(root)
+    root.protocol("WM_DELETE_WINDOW", app.stop_camera)
+    root.mainloop()
