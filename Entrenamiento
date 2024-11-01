@@ -1,0 +1,85 @@
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import matplotlib.pyplot as plt
+# Directorio donde están las imágenes
+train_dir = r'C:\Users\brand\source\repos\Python_objec\FishImgDataset\train'
+test_dir = r'C:\Users\brand\source\repos\Python_objec\FishImgDataset\test'
+
+# Preprocesamiento de imágenes
+train_datagen = ImageDataGenerator(rescale=1.0/255.0, 
+                                    rotation_range=20, 
+                                    width_shift_range=0.2,
+                                    height_shift_range=0.2,
+                                    shear_range=0.2,
+                                    zoom_range=0.2,
+                                    horizontal_flip=True)
+
+test_datagen = ImageDataGenerator(rescale=1.0/255.0)
+
+train_generator = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(250, 250),
+    batch_size=32,
+    class_mode='categorical'  # Usa 'sparse' si las etiquetas son enteros
+)
+
+test_generator = test_datagen.flow_from_directory(
+    test_dir,
+    target_size=(250, 250),
+    batch_size=32,
+    class_mode='categorical'
+)
+from tensorflow.keras import layers, models, Input
+
+
+# Construir la arquitectura del modelo utilizando Input
+model = models.Sequential([
+    Input(shape=(250, 250, 3)),  # Definir la entrada
+    layers.Conv2D(32, (3, 3), activation='relu'),
+    layers.MaxPooling2D(pool_size=(2, 2)),
+    
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D(pool_size=(2, 2)),
+    
+    layers.Conv2D(128, (3, 3), activation='relu'),
+    layers.MaxPooling2D(pool_size=(2, 2)),
+    
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(24, activation='softmax')  # Cambia  por el número de clases que tengas
+])
+
+
+# Compilar el modelo
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Entrenar el modelo
+history = model.fit(train_generator, 
+                    epochs=10,#20 
+                    validation_data=test_generator)
+# Graficar la precisión y la pérdida
+import matplotlib.pyplot as plt
+# Guardar el modelo
+model.save('IA_submarino.h5')  # Puedes usar cualquier nombre que desees
+# Graficar precisión
+plt.plot(history.history['accuracy'], label='Precision de entrenamiento')
+plt.plot(history.history['val_accuracy'], label='Precision de validacion')
+plt.title('Precision del modelo')
+plt.ylabel('Precision')
+plt.xlabel('Epocas')
+plt.legend()
+plt.show()
+
+# Graficar pérdida
+plt.plot(history.history['loss'], label='Perdida de entrenamiento')
+plt.plot(history.history['val_loss'], label='Perdida de validacion')
+plt.title('Perdida del modelo')
+plt.ylabel('Perdida')
+plt.xlabel('Epocas')
+plt.legend()
+plt.show()
+# Guardar el modelo
+model.save('IA_submarino.h5')  # Puedes usar cualquier nombre que desees
+
