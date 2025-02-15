@@ -1,0 +1,202 @@
+#include <PS2X_lib.h>
+#include <printf.h>
+#include <Servo.h>  //librería necesaria para las ESC de control
+
+Servo myESC;                   // Crea un objeto Servo
+int C_V_M_1 = 5, C_V_M_2 = 6;  //subir y bajar  Control_Velocidad_Motor
+int C_V_M_3 = 3, C_V_M_4 = 9;  //laterales Control_Velocidad_Motor
+long tiempo;
+int distancia;
+int espera = 20;
+int V_M_1 = 1000, V_M_2 = 1000, V_M_3 = 1000, V_M_4 = 1000;  //1000 apagado 2000 Maxima velocidad // Velocidad_Motor_#
+unsigned long last_Time = 0;
+PS2X ps2x;
+int error = 0;
+byte type = 0;
+byte vibrate = 0;
+// RELEVADORES
+int M_s_1_R1 = 2, M_s_1_R2 = 4, M_s_2_R1 = 7, M_s_2_R2 = 8;      //Motor_Superior_#_Rele#
+int M_l_1_R1 = 14, M_l_1_R2 = 15, M_l_2_R1 = 16, M_l_2_R2 = 17;  //Motor_Lateral_#_Rele#
+// Submarino
+void setup() {
+  Inicializacion_de_pines();
+  error = ps2x.config_gamepad(13, 11, 10, 12, false, true);
+  //setup pins and settings:  GamePad(clock, command, attention, data, Pressures?, Rumble?) check for error
+  prenderM1();
+  Serial.begin(9600);
+  if (error == 0) {
+    Serial.println("Found Controller, configured successful");
+  }
+  type = ps2x.readType();
+}
+
+void loop() {
+  if (type == 1) {
+    ps2x.read_gamepad(false, vibrate);  //Lectura del estado
+    //Lectura de las palancas analógicas
+
+    if (ps2x.Analog(PSS_LY) >= 120 && ps2x.Analog(PSS_LY) <= 140 && ps2x.Analog(PSS_LX) >= 120 && ps2x.Analog(PSS_LX) <= 140 && ps2x.Analog(PSS_RY) >= 120 && ps2x.Analog(PSS_RY) <= 140 && ps2x.Analog(PSS_RX) >= 120 && ps2x.Analog(PSS_RX) <= 140) {
+      //Neutro
+      V_M_1 = 1000;
+      myESC.writeMicroseconds(V_M_1);
+      //Lectura de los botones de dirección
+      if (ps2x.Button(PSB_PAD_UP)) {  //Arriba
+        Flotar();
+        Serial.println("arriba");
+        V_M_1 = 2000;
+        V_M_2 = 2000;
+        myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+        myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+        delay(espera);
+
+      } else if (ps2x.Button(PSB_PAD_RIGHT)) {
+
+        delay(espera);
+      } else if (ps2x.Button(PSB_PAD_LEFT)) {
+
+        delay(espera);
+      } else if (ps2x.Button(PSB_PAD_DOWN)) {
+        //abajo
+        Sumergirse();
+        Serial.println("abajo");
+        V_M_1 = 2000;
+        V_M_2 = 2000;
+        myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+        myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+        delay(espera);
+      }
+      //Lectura del estado de botones
+      if (ps2x.NewButtonState()) {
+        if (ps2x.Button(PSB_RED)) {
+
+          delay(30000);
+        } else if (ps2x.Button(PSB_GREEN)) {
+
+          delay(10000);
+
+        } else if (ps2x.Button(PSB_PINK)) {
+
+          delay(20000);
+
+        } else if (ps2x.Button(PSB_BLUE)) {
+
+          delay(10000);
+        } else if (ps2x.Button(PSB_L3)) {
+          //ERAR fondoACEL
+
+        } else if (ps2x.Button(PSB_R3)) {
+          //retroceder
+        } else if (ps2x.Button(PSB_L2)) {
+          //LUZ PRENDER
+        }
+
+        else if (ps2x.Button(PSB_R2)) {
+          //LUZ APAGAR
+        }
+      }
+    }
+    //palanca izquierda
+    else if (ps2x.Analog(PSS_LY) >= 140) {
+      //izquierda ATRAS
+      V_M_1 = map(ps2x.Analog(PSS_LY), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_LY), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_LY) <= 120) {
+      //DELANTE izquierda
+      V_M_1 = map(ps2x.Analog(PSS_LY), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_LY), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_LX) >= 140) {
+      //derecha left
+      V_M_1 = map(ps2x.Analog(PSS_LX), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_LX), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_LX) <= 120) {
+      //left izquierda
+      V_M_1 = map(ps2x.Analog(PSS_LX), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_LX), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    }
+    //palanca derecha
+    else if (ps2x.Analog(PSS_RY) >= 140) {
+      //derecha ATRAS
+      V_M_1 = map(ps2x.Analog(PSS_RY), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_RY), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_RY) <= 120) {
+      //DELANTE derecha
+      V_M_1 = map(ps2x.Analog(PSS_RY), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_RY), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_RX) >= 140) {
+      //derecha rigt
+      V_M_1 = map(ps2x.Analog(PSS_RX), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_RX), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    } else if (ps2x.Analog(PSS_RX) <= 120) {
+      //rigt izquierda
+      Serial.println("izquierda");
+      V_M_1 = map(ps2x.Analog(PSS_RX), 0, 255, 1000, 2000);
+      V_M_2 = map(ps2x.Analog(PSS_RX), 0, 255, 1000, 2000);
+      myESC.writeMicroseconds(V_M_1);  //señal PWM enviada a la ESC
+      myESC.writeMicroseconds(V_M_2);  //señal PWM enviada a la ESC
+      delay(espera);
+    }
+  } else {
+    return;
+  }
+
+  delay(100);
+}
+void Inicializacion_de_pines() {
+  pinMode(C_V_M_1, OUTPUT);
+  pinMode(C_V_M_2, OUTPUT);
+  pinMode(C_V_M_3, OUTPUT);
+  pinMode(C_V_M_4, OUTPUT);  //Control_Velocidad_Motor
+  pinMode(M_s_1_R1, OUTPUT);
+  pinMode(M_s_1_R2, OUTPUT);  //Motor_Superior_#_Rele#
+  pinMode(M_s_2_R1, OUTPUT);
+  pinMode(M_s_2_R2, OUTPUT);
+  pinMode(M_l_1_R1, OUTPUT);  //Motor_Lateral_#_Rele#
+  pinMode(M_l_1_R2, OUTPUT);
+  pinMode(M_l_2_R1, OUTPUT);
+  pinMode(M_l_2_R2, OUTPUT);
+  myESC.attach(C_V_M_1);  // pin de control de ESC
+  myESC.attach(C_V_M_2);
+  myESC.attach(C_V_M_3);
+  myESC.attach(C_V_M_4);
+}
+void Sumergirse() {
+  digitalWrite(M_s_1_R1, LOW);
+  digitalWrite(M_s_1_R2, LOW);
+  digitalWrite(M_s_2_R1, LOW);
+  digitalWrite(M_s_2_R2, LOW);
+}
+void Flotar() {
+  digitalWrite(M_s_1_R1, HIGH);
+  digitalWrite(M_s_1_R2, HIGH);
+  digitalWrite(M_s_2_R1, HIGH);
+  digitalWrite(M_s_2_R2, HIGH);
+}
+void SubirM1() {
+  digitalWrite(M_s_1_R1, HIGH);
+  digitalWrite(M_s_1_R2, HIGH);
+}
+void BajarM1() {
+  digitalWrite(M_s_1_R1, LOW);
+  digitalWrite(M_s_1_R2, LOW);
+}
