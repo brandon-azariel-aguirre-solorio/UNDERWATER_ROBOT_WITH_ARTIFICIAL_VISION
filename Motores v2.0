@@ -22,7 +22,6 @@ void setup() {
   Inicializacion_de_pines();
   error = ps2x.config_gamepad(13, 11, 10, 12, false, true);
   //setup pins and settings:  GamePad(clock, command, attention, data, Pressures?, Rumble?) check for error
-  prenderM1();
   Serial.begin(9600);
   if (error == 0) {
     Serial.println("Found Controller, configured successful");
@@ -200,3 +199,4 @@ void BajarM1() {
   digitalWrite(M_s_1_R1, LOW);
   digitalWrite(M_s_1_R2, LOW);
 }
+
