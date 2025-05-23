@@ -1,144 +1,183 @@
-from ctypes.wintypes import SIZE
-from distutils.cmd import Command
-from turtle import screensize
-from typing import Self
 import cv2
-import tensorflow as tf
+from ultralytics import YOLO
+#import tensorflow as tf
 import numpy as np
 import tkinter as tk
 import serial
 import time
-from tkinter import scrolledtext
 from tkinter import messagebox, ttk
-from tensorflow.keras.preprocessing import image
+#from tensorflow.keras.preprocessing import image
 from PIL import Image, ImageTk
 import serial.tools.list_ports
 # Cargar el modelo
-model = tf.keras.models.load_model(r'C:\Users\brand\source\repos\Python_objec\Python_objec\IA_submarino.h5')
-
-# Mapeo de clases
-class_names = ['Anguila', 'Ballena', 'Caballo de mar', 'Calamar', 'Camaron', 
-               'Cangrejo', 'Cocodrilo', 'Coral','Delphin', 'Erizo', 
-               'Estrella de mar', 'Foca','Langosta', 
-               'Mantarralla', 'Medusa', 'Nudibranchs','Nutria',
-               'Orca','Ostra', 'Pez grande', 
-               'Pez mediano', 'Pez chico', 'Pinguino', 'Pulpo', 
-               'Tiburon', 'Tortuga']
-
+model = YOLO(r'C:\Users\brand\runs\detect\mi_entrenamiento_yolov11l\mi_entrenamiento_yolov11m\weights\best.pt')  # Reemplaza con la ruta a tu 'best.pt'
 class CameraApp:
     def __init__(self, root):
-
         self.root = root
         self.root.title("Robot Submarino")
-        self.root.configure(bg='dark blue')  # Cambiar el color de fondo a azul
-        # Define el tamaño de la interfaz
-        self.root.geometry("1400x650")  # Ancho x Alto
-        #lineas de separacion
+        self.root.configure(bg='dark blue')
+        self.root.geometry("1450x700")
+
+        # Lineas de separacion
         self.line_frame = tk.Frame(root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        self.line_frame.pack(fill=tk.X)
+
         # Label para el título
         self.title_label = tk.Label(self.root, text="Robot Submarino", font=("Consolas", 24), bg='dark blue', fg='white')
         self.title_label.pack(pady=10)
+
+        self.line_frame = tk.Frame(self.root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)
+
+        self.title_sublabel = tk.Label(self.root, text="Tesis Robot Submarino Con Vision Artificial", font=("Consolas", 24), bg='dark blue', fg='white')
+        self.title_sublabel.pack(pady=12)
+        self.line_frame = tk.Frame(self.root, bg='blue', height=10)
+        self.line_frame.pack(fill=tk.X)
+          # Frame camara
         self.line_frame = tk.Frame(root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
-        self.title_sublabel = tk.Label(self.root, text="Tesis Robot Submarino Con Vicion Artificial", font=("Consolas", 24), bg='dark blue', fg='white')
-        self.title_sublabel.pack(pady=11)
-        #frame camara
-        self.line_frame = tk.Frame(root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
-        self.camera_frame = tk.Frame(self.root, bg='blue', width=700, height=500)  # Ajusta el tamaño según sea necesario
-        self.camera_frame.pack(side=tk.LEFT, padx=(10, 0), pady=(5,0))  # Llenar verticalmente
-        self.vertical_line = tk.Frame(root, bg='blue', width=10)
-        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)  # Separación a la derecha
-        # Label para mostrar la cámara
+        self.line_frame.pack(fill=tk.X)
+        self.camera_frame = tk.Frame(self.root, bg='blue', width=700, height=500)
+        self.camera_frame.pack(side=tk.LEFT, padx=(10, 10), pady=(5, 0))
         self.camera_label = tk.Label(self.camera_frame, bg='blue')
         self.camera_label.pack()
+        # Llenar horizontalmente  # Ajusta el tamaño según sea necesario
+        self.camera_frame.pack(side=tk.LEFT, padx=(10, 0), pady=(10,5))  # Llenar verticalmente
+        self.vertical_line = tk.Frame(root, bg='blue', width=10)
+        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)  # Separación a la derecha
 
-        # Label para mostrar datos 
-       
-        self.udc_label = tk.Label(self.root, text=" Univercidad de Colima ", font=("Consolas", 18), bg='dark blue', fg='white')
+        # Labels para mostrar datos
+        self.udc_label = tk.Label(self.root, text="Universidad de Colima", font=("Consolas", 18), bg='dark blue', fg='white')
         self.udc_label.pack(pady=10)
-        self.Fie_label = tk.Label(self.root, text=" Facultad de Ingenieria Electromecanica ", font=("Consolas", 16), bg='dark blue', fg='white')
+
+        self.Fie_label = tk.Label(self.root, text="Facultad de Ingenieria Electromecanica", font=("Consolas", 16), bg='dark blue', fg='white')
         self.Fie_label.pack(pady=10)
+
         self.line_frame = tk.Frame(self.root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        self.line_frame.pack(fill=tk.X)
+
+        # Obtener puertos COM
         def obtener_puertos_com():    
             return [port.device for port in serial.tools.list_ports.comports()]
-        def conectar():
-            puerto = combo_puertos.get()
-            try:
-                # Intentar conectar al puerto COM
-                #puerto = 'COM6'
-                self.baud_rate = 115200
-                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
-                messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador.")
-        
-            except Exception as e:
-                # Mostrar un mensaje de error si no se puede conectar
-                messagebox.showerror("Error de conexion", "Ha ocurrido un error al conectar el microcontrolador.")
 
-        puertos_disponibles = obtener_puertos_com()
+        def conectar(event=None):
+            puerto = self.combo_puertos.get()
+            if puerto:
+                try:
+                    self.baud_rate = 115200
+                    self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
+                    messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador.")
+                except Exception as e:
+                    messagebox.showerror("Error de conexion", f"Error: {e}")
+
         # Crear un combobox para seleccionar el puerto COM
-        # Crear un estilo para el combobox
-        estilo = ttk.Style()
-        estilo.configure("TCombobox",
-                         padding=5,
-                         relief="flat",
-                         background='blue',  # Color de fondo
-                         font=("Consolas", 12))
-        combo_puertos = ttk.Combobox(self.root, values=puertos_disponibles,  style="TCombobox")
-        combo_puertos.pack(pady=10, padx=10)
-        # Seleccionar automáticamente el primer puerto disponible, si existe
-        if puertos_disponibles:
-             combo_puertos.current(0)  # Seleccionar el primer puerto
-         #puerto
-        puerto = combo_puertos.get()
-        try:
-                # Intentar conectar al puerto COM
-                #puerto = 'COM6'
-                self.baud_rate = 115200
-                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
-                messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador Exitosamente.")
-        
-        except Exception as e:
-                # Mostrar un mensaje de error si no se puede conectar
-                messagebox.showerror("Error de conexion", "Ha ocurrido un error al conectar el microcontrolador.")
+        self.puertoscom = tk.Label(self.root, text="Puertos COM disponibles: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.puertoscom.pack()
+        self.combo_puertos = ttk.Combobox(self.root, style="TCombobox")
+        self.combo_puertos.pack(pady=10, padx=10)
+        self.line_frame.pack(fill=tk.X)
+        # Actualizar puertos disponibles
+        self.actualizar_puertos()
+        self.combo_puertos.bind("<Return>", conectar)
 
-        combo_puertos.bind("<Return>", conectar)
-        self.code_frame = tk.Frame(self.root, bg='dark blue')
-        self.code_frame.pack(pady=10)
+        # Textos para mostrar el estado
+        self.line_frame2 = tk.Frame(self.root, bg='blue', height=10)
+        self.line_frame2.pack(fill=tk.X)
+        # Frame para textos y radar
+        self.textos_radar_frame = tk.Frame(self.root, bg='dark blue')
+        self.textos_radar_frame.pack(side=tk.LEFT, fill=tk.Y)
 
-        # Text area para mostrar la predicción
-        self.baterialevel = tk.Label(self.code_frame, text="Nivel de bateria: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.baterialevel.pack(pady=10)
-        self.coneccionestado = tk.Label(self.code_frame, text="Estado de coneccion: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.coneccionestado.pack(pady=10)
-        self.profundidad = tk.Label(self.code_frame, text="Nivel de profundidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.profundidad.pack(pady=10)
-        self.prediction_label = tk.Label(self.code_frame, text="Prediccion: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.prediction_label.pack(pady=10)
-        self.line_frame = tk.Frame(self.root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)  # Llenar horizontalmente
+        self.baterialevel = tk.Label(self.textos_radar_frame, text="Velocidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.baterialevel.grid(row=0, column=0, pady=0, sticky=tk.W)
+        self.coneccionestado = tk.Label(self.textos_radar_frame, text="Estado de conexion: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.coneccionestado.grid(row=1, column=0, pady=0, sticky=tk.W)
+        self.temperature = tk.Label(self.textos_radar_frame, text="Temperatura: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.temperature.grid(row=2, column=0, pady=0, sticky=tk.W)
+        self.precion = tk.Label(self.textos_radar_frame, text="Presion: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.precion.grid(row=3, column=0, pady=0, sticky=tk.W)
+        self.profundidad = tk.Label(self.textos_radar_frame, text="Nivel de profundidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.profundidad.grid(row=4, column=0, pady=0, sticky=tk.W)
+        self.prediction_label = tk.Label(self.textos_radar_frame, text="Especie: ", font=("Consolas", 16), bg='dark blue', fg='white')
+        self.prediction_label.grid(row=5, column=0, pady=0, sticky=tk.W)
+         # Configurar pesos de columna para centrar el radar_canvas
+        self.textos_radar_frame.columnconfigure(0, weight=1)
+        self.textos_radar_frame.columnconfigure(6, weight=1)
+
+         # Canvas para el radar
+        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=300, height=150)
+        self.radar_canvas.grid(row=1, column=1, rowspan=5, pady=(2, 0), sticky=tk.NW+tk.NE+tk.SW+tk.SE)
+
+        self.line_frame = tk.Frame(self.textos_radar_frame, bg='blue', height=10)
+        self.line_frame.grid(row=6,column=0, columnspan=3, sticky=tk.W + tk.E)
+
         # Frame para los botones
-        button_frame = tk.Frame(root , bg='dark blue')
-        button_frame.pack(pady=10)
+        self.botones_frame = tk.Frame(self.textos_radar_frame, bg='dark blue')
+        self.botones_frame.grid(row=7, column=0, columnspan=2, pady=2, sticky=tk.W + tk.E)
 
-        # boton lampara
+        # Frame para los botones internos
+        button_frame = tk.Frame(self.botones_frame, bg='dark blue')
+        button_frame.pack(pady=1, fill=tk.X)
 
-        self.encenderluz = tk.Button(button_frame,text="Iluminacion",command=self.toggle_color, font=("Consolas", 12),bg="yellow", fg="black", width=24, height=2,relief=tk.SUNKEN)
-        self.encenderluz.pack(side=tk.LEFT, padx=10) 
+        # Boton lampara
+        self.funciones = tk.Label(button_frame, text="Funciones disponibles", font=("Consolas", 18), bg='dark blue', fg='white')
+        self.funciones.pack(pady=(0, 10)) # Ajuste del pady para mover el texto hacia arriba
+         
+        self.encenderluz = tk.Button(button_frame, text=" Iluminacion ", command=self.toggle_color, font=("Consolas", 18), bg="yellow", fg="black")
+        self.encenderluz.pack(side=tk.LEFT, padx=40)
 
-        #boton motores
-        self.motores = tk.Button(button_frame,text="Motores Encendidos",command=self.toggle_color_motor, font=("Consolas", 12),bg="green", fg="black", width=24, height=2,relief=tk.SUNKEN)
-        self.motores.pack(side=tk.LEFT, padx=10) 
-        #boton motores
-        self.Automatico = tk.Button(button_frame,text="Modo Manual",command=self.toggle_color_manual, font=("Consolas", 12),bg="blue", fg="black", width=24, height=2,relief=tk.SUNKEN)
-        self.Automatico.pack(side=tk.LEFT, padx=10)
+        # Boton motores
+        self.motores = tk.Button(button_frame, text=" Velocidad ", command=self.toggle_color_motor, font=("Consolas", 18), bg="green", fg="black")
+        self.motores.pack(side=tk.LEFT,padx=40)
 
+        # Boton modo automatico
+        self.Automatico = tk.Button(button_frame, text=" Modo ", command=self.toggle_color_manual, font=("Consolas", 18), bg="blue", fg="black")
+        self.Automatico.pack(side=tk.LEFT,padx=40)
         self.capture = None
         self.running = False
         self.read_serial()
-        self.start_camera()  # Iniciar la cámara automáticamente
+        self.start_camera() 
+        self.radar_points = []
+        self.pulse_radius = 0
+        self.distance_text = None  # Texto para mostrar la distancia
+        self.update_radar()
+
+    def actualizar_puertos(self):
+        puertos_disponibles = [port.device for port in serial.tools.list_ports.comports()]
+        self.combo_puertos['values'] = puertos_disponibles
+        if puertos_disponibles:
+            self.combo_puertos.current(0)
+        self.root.after(2000, self.actualizar_puertos)
+
+    def read_serial(self):
+        try:
+            if hasattr(self, 'Ser') and self.Ser and self.Ser.in_waiting > 0:
+                respuesta = self.Ser.readline().decode('utf-8').rstrip()
+                self.coneccionestado.config(text=f"Estado: {respuesta}")
+
+                fragmentos = respuesta.split(",")
+
+                if len(fragmentos) >= 5:
+                    Eprofundidad, Econexion, Evel, Etem, Epreci = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3],fragmentos[4]
+                    self.coneccionestado.config(text=f"Estado de conexion: {Econexion}")
+                    self.baterialevel.config(text=f"Velocidad: {Evel} m/s")
+                    self.profundidad.config(text=f"Nivel de profundidad: {Eprofundidad} Metros")
+                    self.temperature.config(text=f"Temperatura: {Etem} °C")
+                    self.precion.config(text=f"Precion: {Epreci} bar")
+                # Actualizar datos del radar si están disponibles
+                if len(fragmentos) >= 7:
+                    try:
+                        distancia = float(fragmentos[5])
+                        angulo = float(fragmentos[6])
+                        self.radar_points.append((distancia, angulo))
+                        if len(self.radar_points) > 20:
+                            self.radar_points.pop(0)
+                    except ValueError:
+                        print("Datos de radar no validos")
+
+        except Exception as e:
+            self.coneccionestado.config(text=f"Error: {e}")
+
+        self.root.after(10, self.read_serial)
+     
     def start_camera(self):
         if self.running:
             return
@@ -146,109 +185,32 @@ class CameraApp:
         self.capture = cv2.VideoCapture(1)
         self.update_camera()
     
-    def read_serial(self): 
-        try:
-            if self.Ser.in_waiting > 0:
-                respuesta = self.Ser.readline().decode('utf-8').rstrip()
-                self.coneccionestado.config(text=f"Estado: {respuesta}")  # Actualiza el label al recibir
-            
-                # Extraer fragmentos separados por comas
-                fragmentos = respuesta.split(",")  # Dividir la cadena por comas
-            
-                # Asignar fragmentos a variables
-                if len(fragmentos) >= 3:  # Asegúrate de que hay suficientes fragmentos
-                    Eprofundidad, Econexion, Ebateria = fragmentos[0], fragmentos[1], fragmentos[2]
-                    # Actualiza el estado con los fragmentos
-                    self.coneccionestado.config(text=f"Estado de conexion: {Econexion}")
-                    self.baterialevel.config(text=f"Nivel de energia: {Ebateria} %")
-                    self.profundidad.config(text=f"Nivel de profundidad: {Eprofundidad} Metros")
-                    #self.coneccionestado.config(text=f"Estado: {Econexion}")
-                else:
-                    self.coneccionestado.config(text="No hay suficientes fragmentos.")
-
-        except Exception as e:
-          self.coneccionestado.config(text=f"Error: {e}")  # Muestra el error en el label
-
-        # Repite la lectura
-        self.root.after(10, self.read_serial)
- 
-    def toggle_color(self):
-        # Cambia el color del botón
-        current_color = self.encenderluz.cget("bg")
-        new_color = "dark red" if current_color == "yellow" else "yellow"
-        self.encenderluz.config(bg=new_color)
-        if current_color == "dark red":
-            colortext= "black"
-            estadoboton = "Luz Encendida"
-            commando = "LON"
-        elif current_color == "yellow":
-           colortext= "white"
-           estadoboton = "Luz Apagada"
-           commando = "LOFF"
-        else: "dark red"
-        self.Ser.write(commando.encode())
-        self.encenderluz.config(text=estadoboton)
-        self.encenderluz.config(fg=colortext)
-    def toggle_color_motor(self):
-        # Cambia el color del botón
-        current_color = self.motores.cget("bg")
-        new_color = "green" if current_color == "blue" else "blue"
-        self.motores.config(bg=new_color)
-        if current_color == "blue":
-            colortext= "black"
-            estadoboton = "Motores Encendidos"
-            commandom = "MON"
-        elif current_color == "green":
-           colortext= "white"
-           estadoboton = "Motores Apagados"
-           commandom = "MOFF"
-        self.Ser.write(commandom.encode())
-        self.motores.config(text=estadoboton)
-        self.motores.config(fg=colortext)
-    def toggle_color_manual(self):
-        # Cambia el color del botón
-        current_color = self.Automatico.cget("bg")
-        new_color = "dark blue" if current_color == "blue" else "blue"
-        self.Automatico.config(bg=new_color)
-        if current_color == "dark blue":
-            colortext= "black"
-            estadoboton = "Modo control Manual"
-            commandoa = "MM"
-        elif current_color == "blue":
-           colortext= "white"
-           estadoboton = "Modo control Automatico"
-           commandoa = "MA"
-        else: "dark blue"
-        self.Ser.write(commandoa.encode())
-        self.Automatico.config(text=estadoboton)
-        self.Automatico.config(fg=colortext)
     def update_camera(self):
         if self.running and self.capture.isOpened():
             ret, frame = self.capture.read()
+            results = model(frame)
             if ret:
-                # Redimensionar la imagen para que coincida con la entrada del modelo
-                img_resized = cv2.resize(frame, (350, 350))
-                img_array = image.img_to_array(img_resized)
-                img_array = np.expand_dims(img_array, axis=0) / 255.0  # Normalizar y agregar dimensión del batch
-
-                # Hacer la predicción
-                predictions = model.predict(img_array)
-                predicted_class = np.argmax(predictions, axis=1)
-
-                # Verifica la confianza
-                if np.max(predictions) < 0.8:
-                    predicted_name = "Especie desconocida"
-                else:
-                    predicted_name = class_names[predicted_class[0]]
-
-                # Mostrar la predicción en el label
-                self.prediction_label.configure(text=f"Especie identificada: {predicted_name}  \n")
-
-                # Convertir a imagen para Tkinter
-                self.photo = tk.PhotoImage(data=cv2.imencode('.png', frame)[1].tobytes())
-                self.camera_label.configure(image=self.photo)
-                self.camera_label.image = self.photo
-
+                for result in results:
+                    boxes = result.boxes.cpu().numpy()  # Obtiene los bounding boxes en formato numpy
+                    if boxes is not None and len(boxes) > 0:
+                        for box in boxes:
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            confidence = box.conf[0]
+                            class_id = int(box.cls[0])
+                            class_name = model.names[class_id]
+                            label = f'{class_name}: {confidence:.2f}'
+            
+                            # Dibuja el bounding box
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            
+                            # Dibuja la etiqueta de la clase y la confianza
+                            cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                           
+                img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img_pil = Image.fromarray(img_rgb)
+                img_tk = ImageTk.PhotoImage(image=img_pil)
+                self.camera_label.configure(image=img_tk)
+                self.camera_label.image = img_tk              
             self.camera_label.after(10, self.update_camera)
         else:
             self.stop_camera()
@@ -257,12 +219,94 @@ class CameraApp:
         if self.capture is not None:
             self.capture.release()
         self.running = False
-        if self.Ser.is_open:
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
             self.Ser.close()
         self.root.destroy()
+
+    def toggle_color(self):
+        current_color = self.encenderluz.cget("bg")
+        new_color = "dark red" if current_color == "yellow" else "yellow"
+        self.encenderluz.config(bg=new_color)
+        commando = "LOFF" if new_color == "dark red" else "LON"
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            self.Ser.write(commando.encode())
+        if current_color == "dark red":
+            colortext= "black"
+            encenderluz= "Luz Encendida"
+        elif current_color == "yellow":
+            colortext= "white"
+            encenderluz = "Luz Apagada"
+        self.encenderluz.config(text=encenderluz)
+
+    def toggle_color_motor(self):
+        current_color = self.motores.cget("bg")
+        new_color = "green" if current_color == "blue" else "blue"
+        self.motores.config(bg=new_color)
+        commandom = "MON" if new_color == "green" else "MOFF"
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            self.Ser.write(commandom.encode())
+        if current_color == "green":
+            colortext= "black"
+            encenderluz= "Velocidad alta"
+        elif current_color == "blue":
+            colortext= "white"
+            encenderluz = "Velocidad baja"
+        self.motores.config(text=encenderluz)
+
+    def toggle_color_manual(self):
+        current_color = self.Automatico.cget("bg")
+        new_color = "dark blue" if current_color == "blue" else "blue"
+        self.Automatico.config(bg=new_color)
+        commandom = "MM" if new_color == "dark blue" else "MA"
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            self.Ser.write(commandom.encode())
+        if current_color == "dark blue":
+            colortext= "black"
+            encenderluz= "Modo manual"
+        elif current_color == "blue":
+            colortext= "white"
+            encenderluz = "Modo automatico"
+        self.Automatico.config(text=encenderluz)
+
+    def update_radar(self):
+
+        self.radar_canvas.delete("all")
+
+        # Dibuja el círculo del radar
+        self.radar_canvas.create_oval(10, 10, 290, 290, outline='green', width=5)
+        self.radar_canvas.create_line(150, 0, 150, 300, fill="green", width=1)
+        self.radar_canvas.create_line(0, 150, 300, 150, fill="green", width=5)
+
+          # Incrementa el radio del pulso
+        self.pulse_radius += 5
+        if self.pulse_radius > 140:
+            self.pulse_radius = 0
+
+        # Dibuja el pulso circular expandiéndose
+        self.radar_canvas.create_oval(
+            150 - self.pulse_radius, 150 - self.pulse_radius,
+            150 + self.pulse_radius, 150 + self.pulse_radius,
+            outline='green', width=5
+        )
+
+     # Verifica detecciones y dibuja ondas rojas
+        for distancia, angulo in self.radar_points:
+            if abs(distancia - self.pulse_radius) < 5:
+                # Detección: dibuja onda roja (círculo completo)
+                self.radar_canvas.create_oval(
+                    150 - distancia, 150 - distancia, 150 + distancia, 150 + distancia,
+                    outline='dark blue', width=2
+                )
+                # Muestra la distancia en la parte derecha
+                if self.distance_text:
+                    self.radar_canvas.delete(self.distance_text)
+                self.distance_text = self.radar_canvas.create_text(
+                    280, 20, text=f"Distancia: {distancia}", fill="white", anchor=tk.E
+                )
+        self.root.after(50, self.update_radar)
+
 if __name__ == "__main__":
-    root = tk.Tk()
-    root.config(menu='')  # Quitar el menú
-    app = CameraApp(root)
-    root.protocol("WM_DELETE_WINDOW", app.stop_camera)
-    root.mainloop()
+ root = tk.Tk()
+ app = CameraApp(root)
+ root.protocol("WM_DELETE_WINDOW", app.stop_camera)
+ root.mainloop()
