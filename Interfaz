@@ -81,15 +81,15 @@ class CameraApp:
         self.temperature = tk.Label(self.textos_radar_frame, text="Temperatura: ", font=("Consolas", 16), bg='dark blue', fg='white')
         self.temperature.grid(row=2, column=0, pady=0, sticky=tk.W)
         self.precion = tk.Label(self.textos_radar_frame, text="Presion: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.precion.grid(row=3, column=0, pady=0, sticky=tk.W)
+        self.precion.grid(row=5, column=0, pady=0, sticky=tk.W)
         self.profundidad = tk.Label(self.textos_radar_frame, text="Nivel de profundidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
         self.profundidad.grid(row=4, column=0, pady=0, sticky=tk.W)
         self.prediction_label = tk.Label(self.textos_radar_frame, text="Especie: ", font=("Consolas", 16), bg='dark blue', fg='white')
-        self.prediction_label.grid(row=5, column=0, pady=0, sticky=tk.W)
+        self.prediction_label.grid(row=3, column=0, pady=0, sticky=tk.W)
         
         # Canvas para el radar (tamaño ajustado para mejor visualización del coche)
-        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=370, height=170) # Increased height
-        self.radar_canvas.grid(row=1, column=1, rowspan=5, pady=(4, 0), sticky=tk.NW+tk.NE+tk.SW+tk.SE)
+        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=315, height=170) # Increased height
+        self.radar_canvas.grid(row=1, column=1, rowspan=5, pady=(0,0), sticky=tk.NW+tk.NE+tk.SW+tk.SE)
 
         # Cargar la imagen del coche para el radar
         self.car_image_path = r'C:\Users\brand\subma.jpg' # ¡Asegúrate de que este archivo exista en el mismo directorio!
@@ -179,21 +179,21 @@ class CameraApp:
                 self.coneccionestado.config(text="Estado de conexion: Conectado")
             except Exception as e:
                 messagebox.showerror("Error de conexion", f"Error al conectar: {e}")
-                self.coneccionestado.config(text="Estado de conexion: Desconectado")
+                self.coneccionestado.config(text="Estado de conexion: Desconectado  ")
                 self.Ser = None
 
     def read_serial(self):
         try:
             if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open and self.Ser.in_waiting > 0:
                 respuesta = self.Ser.readline().decode('utf-8').rstrip()
-                # self.coneccionestado.config(text=f"Estado: {respuesta}") # Esto podría sobrescribir otros estados
+                self.coneccionestado.config(text=f"Estado: {respuesta}") # Esto podría sobrescribir otros estados
 
                 fragmentos = respuesta.split(",")
 
                 # Actualizar datos de telemetría (asumiendo al menos 5 fragmentos)
                 if len(fragmentos) >= 5:
                     Eprofundidad, Econexion, Evel, Etem, Epreci = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3], fragmentos[4]
-                    self.coneccionestado.config(text=f"Estado de conexion: {Econexion}")
+                    self.coneccionestado.config(text=f"Estado de conexion: {Econexion}       ")
                     self.baterialevel.config(text=f"Velocidad: {Evel} m/s")
                     self.profundidad.config(text=f"Nivel de profundidad: {Eprofundidad} Metros")
                     self.temperature.config(text=f"Temperatura: {Etem} °C")
@@ -213,7 +213,7 @@ class CameraApp:
             elif hasattr(self, 'Ser') and self.Ser and not self.Ser.is_open:
                 self.coneccionestado.config(text="Estado de conexion: Desconectado (Puerto cerrado)")
             else:
-                self.coneccionestado.config(text="Estado de conexion: No conectado")
+                self.coneccionestado.config(text="Estado de conexion: No conectado    ")
 
 
         except serial.SerialException as e:
@@ -256,7 +256,7 @@ class CameraApp:
                             
                             # Dibuja la etiqueta de la clase y la confianza
                             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                            self.prediction_label.config(text=f"Especie: {class_name}") # Actualiza la especie detectada
+                            self.prediction_label.config(text=f"Especie: {class_name}   ") # Actualiza la especie detectada
                             
                 img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img_pil = Image.fromarray(img_rgb)
@@ -342,11 +342,11 @@ class CameraApp:
     def update_radar(self):
         self.radar_canvas.delete("all") # Borra todo el contenido anterior del canvas
 
-        canvas_width = 370
+        canvas_width = 315
         canvas_height = 170
 
         # Posicionamiento del submarino (centrado horizontalmente, hacia la parte inferior)
-        sub_center_x = (canvas_width / 2) - 50
+        sub_center_x = (canvas_width / 2) - 20
         sub_image_height = self.car_image_tk.height() if self.car_image_tk else 0
         sub_image_width = self.car_image_tk.width() if self.car_image_tk else 0
 
@@ -375,8 +375,8 @@ class CameraApp:
         max_radius_front = sub_top_edge - 10
 
         max_display_radius = min(max_radius_bottom, max_radius_left, max_radius_right, max_radius_front)
-        if max_display_radius < 40:
-            max_display_radius = 40
+        if max_display_radius < 45:
+            max_display_radius = 45
 
         num_arcs = 8
         arc_step_pixels = max_display_radius / num_arcs
@@ -409,13 +409,13 @@ class CameraApp:
             self.radar_canvas.create_arc(
                 origin_bottom[0] - radius, origin_bottom[1] - radius,
                 origin_bottom[0] + radius, origin_bottom[1] + radius,
-                start=180, extent=180, outline=global_arc_color, width=1, style=tk.ARC
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
             )
             # Arcos desde el borde derecho (extendiéndose hacia la derecha)
             self.radar_canvas.create_arc(
                 origin_right[0] - radius, origin_right[1] - radius + 30, # +30 para desplazarlo hacia abajo
                 origin_right[0] + radius, origin_right[1] + radius + 30,
-                start=270, extent=180, outline=global_arc_color, width=1, style=tk.ARC
+                start=320, extent=100, outline=global_arc_color, width=1, style=tk.ARC
             )
         # Actualizar el texto de distancia (usando la distancia más cercana)
         if current_closest_dist != float('inf'): # Si se detectó algo
