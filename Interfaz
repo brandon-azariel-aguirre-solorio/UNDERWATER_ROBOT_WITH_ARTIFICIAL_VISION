@@ -1,16 +1,17 @@
 import cv2
 from ultralytics import YOLO
-#import tensorflow as tf
 import numpy as np
 import tkinter as tk
 import serial
 import time
 from tkinter import messagebox, ttk
-#from tensorflow.keras.preprocessing import image
 from PIL import Image, ImageTk
-import serial.tools.list_ports
-# Cargar el modelo
-model = YOLO(r'C:\Users\brand\runs\detect\mi_entrenamiento_yolov11l\mi_entrenamiento_yolov11m\weights\best.pt')  # Reemplaza con la ruta a tu 'best.pt'
+import serial.tools.list_ports # Mantengo esta importación como en tu código original
+
+# Cargar el modelo YOLO
+# Asegúrate de que esta ruta sea correcta para tu modelo
+model = YOLO(r'C:\Users\brand\runs\detect\mi_entrenamiento_yolov11l\mi_entrenamiento_yolov11m\weights\best.pt')
+
 class CameraApp:
     def __init__(self, root):
         self.root = root
@@ -33,17 +34,16 @@ class CameraApp:
         self.title_sublabel.pack(pady=12)
         self.line_frame = tk.Frame(self.root, bg='blue', height=10)
         self.line_frame.pack(fill=tk.X)
-          # Frame camara
-        self.line_frame = tk.Frame(root, bg='blue', height=10)
-        self.line_frame.pack(fill=tk.X)
+
+        # Frame camara
         self.camera_frame = tk.Frame(self.root, bg='blue', width=700, height=500)
-        self.camera_frame.pack(side=tk.LEFT, padx=(10, 10), pady=(5, 0))
+        # Ajusta el tamaño según sea necesario y la posición
+        self.camera_frame.pack(side=tk.LEFT, padx=(10, 0), pady=(10,5))
         self.camera_label = tk.Label(self.camera_frame, bg='blue')
-        self.camera_label.pack()
-        # Llenar horizontalmente  # Ajusta el tamaño según sea necesario
-        self.camera_frame.pack(side=tk.LEFT, padx=(10, 0), pady=(10,5))  # Llenar verticalmente
+        self.camera_label.pack(fill=tk.BOTH, expand=True) # Para que la imagen de la cámara llene el frame
+
         self.vertical_line = tk.Frame(root, bg='blue', width=10)
-        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)  # Separación a la derecha
+        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)
 
         # Labels para mostrar datos
         self.udc_label = tk.Label(self.root, text="Universidad de Colima", font=("Consolas", 18), bg='dark blue', fg='white')
@@ -55,36 +55,24 @@ class CameraApp:
         self.line_frame = tk.Frame(self.root, bg='blue', height=10)
         self.line_frame.pack(fill=tk.X)
 
-        # Obtener puertos COM
-        def obtener_puertos_com():    
-            return [port.device for port in serial.tools.list_ports.comports()]
-
-        def conectar(event=None):
-            puerto = self.combo_puertos.get()
-            if puerto:
-                try:
-                    self.baud_rate = 115200
-                    self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
-                    messagebox.showinfo("Conexion exitosa", "Se ha conectado al microcontrolador.")
-                except Exception as e:
-                    messagebox.showerror("Error de conexion", f"Error: {e}")
-
-        # Crear un combobox para seleccionar el puerto COM
+        # Crear un combobox para seleccionar el puerto COM (RESTAURADO)
         self.puertoscom = tk.Label(self.root, text="Puertos COM disponibles: ", font=("Consolas", 16), bg='dark blue', fg='white')
         self.puertoscom.pack()
         self.combo_puertos = ttk.Combobox(self.root, style="TCombobox")
         self.combo_puertos.pack(pady=10, padx=10)
         self.line_frame.pack(fill=tk.X)
-        # Actualizar puertos disponibles
-        self.actualizar_puertos()
-        self.combo_puertos.bind("<Return>", conectar)
+
+        # Actualizar puertos disponibles (RESTAURADO)
+        self.actualizar_puertos() # Llama al método al inicio
+        self.combo_puertos.bind("<Return>", self.conectar) # Llama al método de clase
 
         # Textos para mostrar el estado
         self.line_frame2 = tk.Frame(self.root, bg='blue', height=10)
         self.line_frame2.pack(fill=tk.X)
+        
         # Frame para textos y radar
         self.textos_radar_frame = tk.Frame(self.root, bg='dark blue')
-        self.textos_radar_frame.pack(side=tk.LEFT, fill=tk.Y)
+        self.textos_radar_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
         self.baterialevel = tk.Label(self.textos_radar_frame, text="Velocidad: ", font=("Consolas", 16), bg='dark blue', fg='white')
         self.baterialevel.grid(row=0, column=0, pady=0, sticky=tk.W)
@@ -98,16 +86,19 @@ class CameraApp:
         self.profundidad.grid(row=4, column=0, pady=0, sticky=tk.W)
         self.prediction_label = tk.Label(self.textos_radar_frame, text="Especie: ", font=("Consolas", 16), bg='dark blue', fg='white')
         self.prediction_label.grid(row=5, column=0, pady=0, sticky=tk.W)
-         # Configurar pesos de columna para centrar el radar_canvas
-        self.textos_radar_frame.columnconfigure(0, weight=1)
-        self.textos_radar_frame.columnconfigure(6, weight=1)
+        
+        # Canvas para el radar (tamaño ajustado para mejor visualización del coche)
+        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=370, height=170) # Increased height
+        self.radar_canvas.grid(row=1, column=1, rowspan=5, pady=(4, 0), sticky=tk.NW+tk.NE+tk.SW+tk.SE)
 
-         # Canvas para el radar
-        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=300, height=150)
-        self.radar_canvas.grid(row=1, column=1, rowspan=5, pady=(2, 0), sticky=tk.NW+tk.NE+tk.SW+tk.SE)
+        # Cargar la imagen del coche para el radar
+        self.car_image_path = r'C:\Users\brand\subma.jpg' # ¡Asegúrate de que este archivo exista en el mismo directorio!
+        self.car_image_tk = None # Para mantener la referencia de PhotoImage
+        self.car_image_pil = None # Para mantener la referencia de la imagen PIL
+        self.load_car_image()
 
         self.line_frame = tk.Frame(self.textos_radar_frame, bg='blue', height=10)
-        self.line_frame.grid(row=6,column=0, columnspan=3, sticky=tk.W + tk.E)
+        self.line_frame.grid(row=6,column=0, columnspan=3, sticky=tk.W + tk.E) # Adjusted columnspan for grid
 
         # Frame para los botones
         self.botones_frame = tk.Frame(self.textos_radar_frame, bg='dark blue')
@@ -119,8 +110,8 @@ class CameraApp:
 
         # Boton lampara
         self.funciones = tk.Label(button_frame, text="Funciones disponibles", font=("Consolas", 18), bg='dark blue', fg='white')
-        self.funciones.pack(pady=(0, 10)) # Ajuste del pady para mover el texto hacia arriba
-         
+        self.funciones.pack(pady=(0, 10))
+            
         self.encenderluz = tk.Button(button_frame, text=" Iluminacion ", command=self.toggle_color, font=("Consolas", 18), bg="yellow", fg="black")
         self.encenderluz.pack(side=tk.LEFT, padx=40)
 
@@ -131,67 +122,127 @@ class CameraApp:
         # Boton modo automatico
         self.Automatico = tk.Button(button_frame, text=" Modo ", command=self.toggle_color_manual, font=("Consolas", 18), bg="blue", fg="black")
         self.Automatico.pack(side=tk.LEFT,padx=40)
+
         self.capture = None
         self.running = False
-        self.read_serial()
-        self.start_camera() 
-        self.radar_points = []
-        self.pulse_radius = 0
-        self.distance_text = None  # Texto para mostrar la distancia
-        self.update_radar()
+        self.baud_rate = 115200 # Default baud rate
+        self.Ser = None # Initialize serial port to None
 
+        # Variables para el radar
+        self.radar_points = [] # Lista para almacenar (distancia, angulo) de las detecciones
+        self.distance_text = None # Para el texto de distancia
+
+        # Iniciar las actualizaciones
+        self.read_serial()
+        self.start_camera()
+        self.update_radar() # Inicia la actualización del radar
+
+    def load_car_image(self):
+        try:
+            self.car_image_pil = Image.open(self.car_image_path)
+            # Redimensionar la imagen para que sea pequeña y quepa en el canvas
+            target_car_width = 260 # Ancho deseado para la imagen del coche
+            aspect_ratio = self.car_image_pil.height / self.car_image_pil.width
+            target_car_height = int(target_car_width * aspect_ratio)
+            
+            self.car_image_tk = ImageTk.PhotoImage(
+                self.car_image_pil.resize((target_car_width, target_car_height), Image.Resampling.LANCZOS)
+            )
+        except FileNotFoundError:
+            messagebox.showwarning("Advertencia", f"La imagen '{self.car_image_path}' no se encontró. El fondo del radar estará vacío.")
+            self.car_image_tk = None
+            self.car_image_pil = None
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar la imagen del coche: {e}")
+            self.car_image_tk = None
+            self.car_image_pil = None
+
+    # Método para actualizar la lista de puertos COM (RESTAURADO)
     def actualizar_puertos(self):
         puertos_disponibles = [port.device for port in serial.tools.list_ports.comports()]
         self.combo_puertos['values'] = puertos_disponibles
         if puertos_disponibles:
-            self.combo_puertos.current(0)
-        self.root.after(2000, self.actualizar_puertos)
+            # Si el puerto actual no está en la lista o no hay conexión, selecciona el primero
+            if self.combo_puertos.get() not in puertos_disponibles or not (hasattr(self, 'Ser') and self.Ser and self.Ser.is_open):
+                self.combo_puertos.current(0)
+        self.root.after(2000, self.actualizar_puertos) # Actualiza cada 2 segundos
+
+    # Método para conectar al puerto serial (RESTAURADO)
+    def conectar(self, event=None):
+        puerto = self.combo_puertos.get()
+        if puerto:
+            try:
+                if self.Ser and self.Ser.is_open:
+                    self.Ser.close() # Cierra la conexión existente si la hay
+                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
+                messagebox.showinfo("Conexion exitosa", f"Se ha conectado al microcontrolador en {puerto}.")
+                self.coneccionestado.config(text="Estado de conexion: Conectado")
+            except Exception as e:
+                messagebox.showerror("Error de conexion", f"Error al conectar: {e}")
+                self.coneccionestado.config(text="Estado de conexion: Desconectado")
+                self.Ser = None
 
     def read_serial(self):
         try:
-            if hasattr(self, 'Ser') and self.Ser and self.Ser.in_waiting > 0:
+            if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open and self.Ser.in_waiting > 0:
                 respuesta = self.Ser.readline().decode('utf-8').rstrip()
-                self.coneccionestado.config(text=f"Estado: {respuesta}")
+                # self.coneccionestado.config(text=f"Estado: {respuesta}") # Esto podría sobrescribir otros estados
 
                 fragmentos = respuesta.split(",")
 
+                # Actualizar datos de telemetría (asumiendo al menos 5 fragmentos)
                 if len(fragmentos) >= 5:
-                    Eprofundidad, Econexion, Evel, Etem, Epreci = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3],fragmentos[4]
+                    Eprofundidad, Econexion, Evel, Etem, Epreci = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3], fragmentos[4]
                     self.coneccionestado.config(text=f"Estado de conexion: {Econexion}")
                     self.baterialevel.config(text=f"Velocidad: {Evel} m/s")
                     self.profundidad.config(text=f"Nivel de profundidad: {Eprofundidad} Metros")
                     self.temperature.config(text=f"Temperatura: {Etem} °C")
                     self.precion.config(text=f"Precion: {Epreci} bar")
-                # Actualizar datos del radar si están disponibles
+                
+                # Actualizar datos del radar (asumiendo al menos 7 fragmentos)
                 if len(fragmentos) >= 7:
                     try:
                         distancia = float(fragmentos[5])
-                        angulo = float(fragmentos[6])
+                        angulo = float(fragmentos[6]) # Asumimos angulo en grados, -90 a 90, 0 al frente
                         self.radar_points.append((distancia, angulo))
-                        if len(self.radar_points) > 20:
+                        # Limitar el número de puntos históricos para mantener el rendimiento
+                        if len(self.radar_points) > 10: # Ajusta según cuántas detecciones quieres mostrar
                             self.radar_points.pop(0)
                     except ValueError:
-                        print("Datos de radar no validos")
+                        print(f"Datos de radar no válidos: {fragmentos[5]}, {fragmentos[6]}")
+            elif hasattr(self, 'Ser') and self.Ser and not self.Ser.is_open:
+                self.coneccionestado.config(text="Estado de conexion: Desconectado (Puerto cerrado)")
+            else:
+                self.coneccionestado.config(text="Estado de conexion: No conectado")
 
+
+        except serial.SerialException as e:
+            self.coneccionestado.config(text=f"Error serial: {e}")
+            self.Ser = None # Marcar como no conectado
         except Exception as e:
-            self.coneccionestado.config(text=f"Error: {e}")
+            self.coneccionestado.config(text=f"Error de lectura: {e}")
 
-        self.root.after(10, self.read_serial)
-     
+        self.root.after(10, self.read_serial) # Continuar leyendo en un bucle
+
     def start_camera(self):
         if self.running:
             return
         self.running = True
-        self.capture = cv2.VideoCapture(1)
+        self.capture = cv2.VideoCapture(1) # Asegúrate de que este es el índice correcto de tu cámara
+        if not self.capture.isOpened():
+            messagebox.showerror("Error de Cámara", "No se pudo abrir la cámara. Asegúrate de que esté conectada y no esté en uso.")
+            self.running = False
+            return
         self.update_camera()
-    
+        
     def update_camera(self):
         if self.running and self.capture.isOpened():
             ret, frame = self.capture.read()
-            results = model(frame)
             if ret:
+                results = model(frame)
+                
                 for result in results:
-                    boxes = result.boxes.cpu().numpy()  # Obtiene los bounding boxes en formato numpy
+                    boxes = result.boxes.cpu().numpy()
                     if boxes is not None and len(boxes) > 0:
                         for box in boxes:
                             x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -199,18 +250,23 @@ class CameraApp:
                             class_id = int(box.cls[0])
                             class_name = model.names[class_id]
                             label = f'{class_name}: {confidence:.2f}'
-            
+                            
                             # Dibuja el bounding box
                             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            
+                            
                             # Dibuja la etiqueta de la clase y la confianza
                             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                           
+                            self.prediction_label.config(text=f"Especie: {class_name}") # Actualiza la especie detectada
+                            
                 img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img_pil = Image.fromarray(img_rgb)
                 img_tk = ImageTk.PhotoImage(image=img_pil)
                 self.camera_label.configure(image=img_tk)
-                self.camera_label.image = img_tk              
+                self.camera_label.image = img_tk
+            else:
+                print("Error: No se pudo leer el frame de la cámara.")
+                self.running = False # Detener el bucle si no se puede leer el frame
+
             self.camera_label.after(10, self.update_camera)
         else:
             self.stop_camera()
@@ -229,84 +285,160 @@ class CameraApp:
         self.encenderluz.config(bg=new_color)
         commando = "LOFF" if new_color == "dark red" else "LON"
         if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
-            self.Ser.write(commando.encode())
-        if current_color == "dark red":
-            colortext= "black"
-            encenderluz= "Luz Encendida"
-        elif current_color == "yellow":
-            colortext= "white"
-            encenderluz = "Luz Apagada"
-        self.encenderluz.config(text=encenderluz)
+            try:
+                self.Ser.write(commando.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+        if new_color == "dark red":
+            text_color = "white"
+            button_text = "Luz Apagada"
+        else: # yellow
+            text_color = "black"
+            button_text = "Luz Encendida"
+        self.encenderluz.config(fg=text_color, text=button_text)
 
     def toggle_color_motor(self):
         current_color = self.motores.cget("bg")
-        new_color = "green" if current_color == "blue" else "blue"
+        new_color = "dark green" if current_color == "green" else "green" # Alterna entre verde y verde oscuro
         self.motores.config(bg=new_color)
-        commandom = "MON" if new_color == "green" else "MOFF"
+        commandom = "MLOW" if new_color == "dark green" else "MHIGH" # Ajusta los comandos a tu microcontrolador
         if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
-            self.Ser.write(commandom.encode())
-        if current_color == "green":
-            colortext= "black"
-            encenderluz= "Velocidad alta"
-        elif current_color == "blue":
-            colortext= "white"
-            encenderluz = "Velocidad baja"
-        self.motores.config(text=encenderluz)
+            try:
+                self.Ser.write(commandom.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+
+        if new_color == "dark green":
+            text_color = "white"
+            button_text = "Velocidad baja"
+        else: # green
+            text_color = "black"
+            button_text = "Velocidad alta"
+        self.motores.config(fg=text_color, text=button_text)
 
     def toggle_color_manual(self):
         current_color = self.Automatico.cget("bg")
         new_color = "dark blue" if current_color == "blue" else "blue"
         self.Automatico.config(bg=new_color)
+        # Asumiendo que "MM" es Modo Manual y "MA" es Modo Automático
         commandom = "MM" if new_color == "dark blue" else "MA"
         if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
-            self.Ser.write(commandom.encode())
-        if current_color == "dark blue":
-            colortext= "black"
-            encenderluz= "Modo manual"
-        elif current_color == "blue":
-            colortext= "white"
-            encenderluz = "Modo automatico"
-        self.Automatico.config(text=encenderluz)
+            try:
+                self.Ser.write(commandom.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+        
+        if new_color == "dark blue":
+            text_color = "white"
+            button_text = "Modo manual"
+        else: # blue
+            text_color = "black"
+            button_text = "Modo automático"
+        self.Automatico.config(fg=text_color, text=button_text)
 
     def update_radar(self):
+        self.radar_canvas.delete("all") # Borra todo el contenido anterior del canvas
 
-        self.radar_canvas.delete("all")
+        canvas_width = 370
+        canvas_height = 170
 
-        # Dibuja el círculo del radar
-        self.radar_canvas.create_oval(10, 10, 290, 290, outline='green', width=5)
-        self.radar_canvas.create_line(150, 0, 150, 300, fill="green", width=1)
-        self.radar_canvas.create_line(0, 150, 300, 150, fill="green", width=5)
+        # Posicionamiento del submarino (centrado horizontalmente, hacia la parte inferior)
+        sub_center_x = (canvas_width / 2) - 50
+        sub_image_height = self.car_image_tk.height() if self.car_image_tk else 0
+        sub_image_width = self.car_image_tk.width() if self.car_image_tk else 0
 
-          # Incrementa el radio del pulso
-        self.pulse_radius += 5
-        if self.pulse_radius > 140:
-            self.pulse_radius = 0
+        sub_center_y = canvas_height - (sub_image_height / 2) - 50
 
-        # Dibuja el pulso circular expandiéndose
-        self.radar_canvas.create_oval(
-            150 - self.pulse_radius, 150 - self.pulse_radius,
-            150 + self.pulse_radius, 150 + self.pulse_radius,
-            outline='green', width=5
-        )
+        # Dibujar la imagen del submarino
+        if self.car_image_tk:
+            self.radar_canvas.create_image(sub_center_x, sub_center_y, image=self.car_image_tk, anchor=tk.CENTER)
 
-     # Verifica detecciones y dibuja ondas rojas
-        for distancia, angulo in self.radar_points:
-            if abs(distancia - self.pulse_radius) < 5:
-                # Detección: dibuja onda roja (círculo completo)
-                self.radar_canvas.create_oval(
-                    150 - distancia, 150 - distancia, 150 + distancia, 150 + distancia,
-                    outline='dark blue', width=2
-                )
-                # Muestra la distancia en la parte derecha
-                if self.distance_text:
-                    self.radar_canvas.delete(self.distance_text)
-                self.distance_text = self.radar_canvas.create_text(
-                    280, 20, text=f"Distancia: {distancia}", fill="white", anchor=tk.E
-                )
-        self.root.after(50, self.update_radar)
+        # Definir las coordenadas de los bordes del submarino
+        sub_left_edge = sub_center_x - sub_image_width / 2
+        sub_right_edge = sub_center_x + sub_image_width / 2
+        sub_top_edge = sub_center_y - sub_image_height / 2
+        sub_bottom_edge = sub_center_y + sub_image_height / 2
+
+        # Definir los orígenes del radar desde los bordes del submarino
+        origin_bottom = (sub_center_x, sub_bottom_edge)
+        origin_left = (sub_left_edge, sub_center_y)
+        origin_right = (sub_right_edge, sub_center_y)
+        origin_front = (sub_center_x, sub_top_edge)
+
+        # Calcular el radio máximo para las ondas (sin cambios importantes aquí)
+        max_radius_bottom = canvas_height - sub_bottom_edge - 0
+        max_radius_left = sub_left_edge - 10
+        max_radius_right = canvas_width - sub_right_edge - 10
+        max_radius_front = sub_top_edge - 10
+
+        max_display_radius = min(max_radius_bottom, max_radius_left, max_radius_right, max_radius_front)
+        if max_display_radius < 40:
+            max_display_radius = 40
+
+        num_arcs = 8
+        arc_step_pixels = max_display_radius / num_arcs
+
+        # --- NUEVA LÓGICA: Determinar el color global de las ondas ---
+        current_closest_dist = float('inf') # Inicializa con una distancia muy grande
+
+        # Encuentra la distancia más cercana si hay puntos en self.radar_points
+        if self.radar_points:
+            for dist, _ in self.radar_points:
+                if dist < current_closest_dist:
+                    current_closest_dist = dist
+
+        # Define los umbrales de distancia para los cambios de color
+        # Utiliza la distancia más cercana del sensor para determinar el color de todas las ondas
+        if current_closest_dist <= 15: # Muy cerca
+            global_arc_color = 'red'
+        elif current_closest_dist <= 25: # Cerca
+            global_arc_color = 'yellow'
+        else: # Distancia segura o no hay objetos
+            global_arc_color = 'green' # Puedes usar 'dark green' si prefieres
+
+        # --- Fin de la nueva lógica de color global ---
+
+        # Dibujar arcos desde los bordes del submarino con el color global
+        for i in range(1, num_arcs + 1):
+            radius = i * arc_step_pixels
+
+            # Arcos desde el borde inferior (extendiéndose hacia abajo)
+            self.radar_canvas.create_arc(
+                origin_bottom[0] - radius, origin_bottom[1] - radius,
+                origin_bottom[0] + radius, origin_bottom[1] + radius,
+                start=180, extent=180, outline=global_arc_color, width=1, style=tk.ARC
+            )
+            # Arcos desde el borde derecho (extendiéndose hacia la derecha)
+            self.radar_canvas.create_arc(
+                origin_right[0] - radius, origin_right[1] - radius + 30, # +30 para desplazarlo hacia abajo
+                origin_right[0] + radius, origin_right[1] + radius + 30,
+                start=270, extent=180, outline=global_arc_color, width=1, style=tk.ARC
+            )
+        # Actualizar el texto de distancia (usando la distancia más cercana)
+        if current_closest_dist != float('inf'): # Si se detectó algo
+            latest_dist_to_display = current_closest_dist
+            if self.distance_text:
+                self.radar_canvas.delete(self.distance_text)
+            self.distance_text = self.radar_canvas.create_text(
+                canvas_width / 2, 10,
+                text=f"Distancia más cercana: {latest_dist_to_display:.2f} cm", fill="white", anchor=tk.N
+            )
+        else: # Si no hay puntos de radar
+            if self.distance_text:
+                self.radar_canvas.delete(self.distance_text)
+            self.distance_text = self.radar_canvas.create_text(
+                canvas_width / 2, 10,
+                text="Esperando datos de radar...", fill="white", anchor=tk.N
+            )
+
+        self.root.after(50, self.update_radar) # Continuar actualizando el radar
 
 if __name__ == "__main__":
- root = tk.Tk()
- app = CameraApp(root)
- root.protocol("WM_DELETE_WINDOW", app.stop_camera)
- root.mainloop()
+    root = tk.Tk()
+    app = CameraApp(root)
+    # Asegúrate de que stop_camera se llama al cerrar la ventana para liberar recursos
+    root.protocol("WM_DELETE_WINDOW", app.stop_camera)
+    root.mainloop()
