@@ -21,7 +21,7 @@ class CameraApp:
         self.root = root
         self.root.title("Robot Submarino")
         self.root.configure(bg='dark blue')
-        self.root.geometry("1450x710")
+        self.root.geometry("1460x710")
 
         # Lineas de separacion
         self.line_frame = tk.Frame(root, bg='blue', height=10)
@@ -216,9 +216,7 @@ class CameraApp:
             if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open and self.Ser.in_waiting > 0:
                 respuesta = self.Ser.readline().decode('utf-8').rstrip()
                 # self.coneccionestado.config(text=f"Estado: {respuesta}") # Esto podría sobrescribir otros estados
-
                 fragmentos = respuesta.split(",")
-
                 # Actualizar datos de telemetría (asumiendo al menos 5 fragmentos)
                 if len(fragmentos) >= 8:
                     Eprofundidad, Econexion, Evel, Etem, Epreci,ED,EA,movimientosub = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3], fragmentos[4],fragmentos[5],fragmentos[6],fragmentos[7]
@@ -478,9 +476,17 @@ class CameraApp:
         sub_image_height = self.subma_image_tk.height() if self.subma_image_tk else 50
         sub_image_width = self.subma_image_tk.width() if self.subma_image_tk else 100
         sub_center_y = canvas_height - (sub_image_height / 2) - 100
-        if self.movimientosub >= 5:
+        
+        if self.movimientosub >= 6 and self.movimientosub <= 10:
             sub_center_y += 60  # Baja la imagen 20 píxeles
-
+        elif self.movimientosub == 11:
+            sub_center_y += 40  # Baja la imagen 20 píxeles
+        elif self.movimientosub == 12:
+            sub_center_y += 40  # Baja la imagen 20 píxeles
+            sub_center_x = (canvas_width / 2) -30
+        elif self.movimientosub == 13:
+            sub_center_y += 40  # Baja la imagen 20 píxeles
+            sub_center_x = (canvas_width / 2) +30
         if self.subma_image_tk:
             self.motor_canvas.create_image(sub_center_x, sub_center_y, image=self.subma_image_tk, anchor=tk.CENTER)
         else:
@@ -523,7 +529,7 @@ class CameraApp:
         for i in range(1, num_arcs + 1):
             radius = i * arc_step_pixels
             if self.movimientosub == 1: # Movimiento hacia adelante/arriba
-                global_arc_color = 'blue' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                global_arc_color = 'blue' 
                 self.motor_canvas.create_arc(
                 origin_bottom[0] - radius, origin_bottom[1] - radius+8,
                 origin_bottom[0] + radius, origin_bottom[1] + radius+8,
@@ -536,21 +542,35 @@ class CameraApp:
                 )
                 
             elif self.movimientosub == 2: # Movimiento hacia atrás/abajo
-                global_arc_color = 'green' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                 origin_bottom[0] - radius, origin_bottom[1] - radius+8,
                 origin_bottom[0] + radius, origin_bottom[1] + radius+8,
                 start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
                 )
             elif self.movimientosub == 3: # Movimiento hacia arriba
-                global_arc_color = 'yellow' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                 origin_bottom2[0] - radius, origin_bottom2[1] - radius+8,
                 origin_bottom2[0] + radius, origin_bottom2[1] + radius+8,
                 start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
                 )
             elif self.movimientosub == 4: # Movimiento hacia abajo
-                global_arc_color = 'red' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                global_arc_color = 'red' 
+                global_arc_color1 = 'blue' 
+                self.motor_canvas.create_arc(
+                    origin_bottom[0] - radius, origin_bottom[1] - radius + 8,
+                    origin_bottom[0] + radius, origin_bottom[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color1, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_bottom2[0] - radius, origin_bottom2[1] - radius + 8,
+                    origin_bottom2[0] + radius, origin_bottom2[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 5: # Movimiento hacia abajo
+                global_arc_color = 'red' 
+                global_arc_color1 = 'blue' 
                 self.motor_canvas.create_arc(
                     origin_bottom[0] - radius, origin_bottom[1] - radius + 8,
                     origin_bottom[0] + radius, origin_bottom[1] + radius + 8,
@@ -559,10 +579,10 @@ class CameraApp:
                 self.motor_canvas.create_arc(
                     origin_bottom2[0] - radius, origin_bottom2[1] - radius + 8,
                     origin_bottom2[0] + radius, origin_bottom2[1] + radius + 8,
-                    start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
-                )
-            elif self.movimientosub == 5: # Movimiento hacia la izquierda
-                global_arc_color = 'blue' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                    start=220, extent=100, outline=global_arc_color1, width=2, style=tk.ARC # Mayor ancho
+                )  
+            elif self.movimientosub == 6: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                     origin_front[0] - radius, origin_front[1] - radius - 6,
                     origin_front[0] + radius, origin_front[1] + radius - 6,
@@ -573,28 +593,62 @@ class CameraApp:
                     origin_front2[0] + radius, origin_front2[1] + radius -6,
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
-            elif self.movimientosub == 6: # Movimiento hacia la derecha
-                global_arc_color = 'yellow' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+            elif self.movimientosub == 7: # Movimiento hacia la derecha
+                global_arc_color = 'blue' 
+                global_arc_color2 = 'red'
                 self.motor_canvas.create_arc(
                     origin_front[0] - radius, origin_front[1] - radius - 6,
                     origin_front[0] + radius, origin_front[1] + radius - 6,
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
-            elif self.movimientosub == 7: # Movimiento hacia la izquierda
-                global_arc_color = 'green' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+                self.motor_canvas.create_arc(
+                    origin_front2[0] - radius, origin_front2[1] - radius -6,
+                    origin_front2[0] + radius, origin_front2[1] + radius -6,
+                    start=40, extent=100, outline=global_arc_color2, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 8: # Movimiento hacia la derecha
+                global_arc_color = 'blue'
+                global_arc_color2 = 'red'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color2, width=2, style=tk.ARC # Mayor ancho
+                )
                 self.motor_canvas.create_arc(
                     origin_front2[0] - radius, origin_front2[1] - radius -6,
                     origin_front2[0] + radius, origin_front2[1] + radius -6,
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
-            elif self.movimientosub == 8: # Movimiento hacia la izquierda
-                global_arc_color = 'green' # Color de las ondas (cambiado a cyan para mejor visibilidad)
+            elif self.movimientosub == 9: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 10: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                     origin_front2[0] - radius, origin_front2[1] - radius -6,
                     origin_front2[0] + radius, origin_front2[1] + radius -6,
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
-
+            elif self.movimientosub == 11: # Movimiento hacia la izquierda
+                global_arc_color = 'black' 
+            elif self.movimientosub == 12: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_right[0] - radius, origin_right[1] - radius -6,
+                    origin_right[0] + radius, origin_right[1] + radius -6,
+                    start=310, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )   
+            elif self.movimientosub == 13: 
+                global_arc_color = 'blue' 
+                self.motor_canvas.create_arc(
+                    origin_left[0] - radius, origin_left[1] - radius -6,
+                    origin_left[0] + radius, origin_left[1] + radius -6,
+                    start=130, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )   
         self.root.after(50, self.update_motores) # Continuar actualizando el radar
 
 if __name__ == "__main__":
