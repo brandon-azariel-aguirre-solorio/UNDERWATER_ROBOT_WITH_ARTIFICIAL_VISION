@@ -1,0 +1,721 @@
+import cv2
+from ultralytics import YOLO
+import numpy as np
+import tkinter as tk
+import serial
+import time
+from tkinter import messagebox, ttk
+from PIL import Image, ImageTk
+import serial.tools.list_ports 
+model = YOLO(r'C:\Users\brand\runs\detect\mi_reentrenamiento10\mi_reentrenamiento10\weights\best.pt')
+
+class CameraApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Robot Submarino")
+        #self.root.configure(bg='dark blue')
+        self.root.configure(bg='#191970')
+        self.root.geometry("1520x710")
+        # Lineas de separacion
+        self.line_frame = tk.Frame(root, bg='#4169E1', height=5)
+        self.line_frame.pack(fill=tk.X)
+        self.distancia = 50.0
+        self.disinferior = 50.0
+        self.distance_text_main = None
+        self.distance_text_bottom = None
+        # Label para el título
+        self.title_label = tk.Label(self.root, text="Robot Submarino", font=("Consolas", 22), bg='#191970', fg='white')
+        self.title_label.pack(pady=5)
+
+        self.line_frame = tk.Frame(self.root, bg='#4169E1', height=5)
+        self.line_frame.pack(fill=tk.X)
+
+        self.title_sublabel = tk.Label(self.root, text="Tesis Robot Submarino Con Vision Artificial", font=("Consolas", 22), bg='#191970', fg='white')
+        self.title_sublabel.pack(pady=5)
+        self.line_frame = tk.Frame(self.root, bg='#4169E1', height=5)
+        self.line_frame.pack(fill=tk.X)
+
+        # Frame camara
+        self.camera_frame = tk.Frame(self.root, bg='#191970', width=1200, height=500)
+        # Ajusta el tamaño según sea necesario y la posición
+        self.camera_frame.pack(side=tk.LEFT, padx=(0, 0), pady=(0,0))
+        self.camera_label = tk.Label(self.camera_frame, bg='#191970')
+        self.camera_label.pack(fill=tk.BOTH, expand=True) # Para que la imagen de la cámara llene el frame
+
+        self.vertical_line = tk.Frame(root, bg='#4169E1', width=5)
+        self.vertical_line.pack(side=tk.LEFT, padx=(10, 0), fill=tk.Y)
+
+        # Labels para mostrar datos
+        self.udc_label = tk.Label(self.root, text="Universidad de Colima", font=("Consolas", 15), bg='#191970', fg='white')
+        self.udc_label.pack(pady=2)
+
+        self.Fie_label = tk.Label(self.root, text="Facultad de Ingenieria Electromecanica", font=("Consolas", 14), bg='#191970', fg='white')
+        self.Fie_label.pack(pady=4)
+
+        self.line_frame = tk.Frame(self.root, bg='#4169E1', height=5)
+        self.line_frame.pack(fill=tk.X)
+
+        # Crear un combobox para seleccionar el puerto COM (RESTAURADO)
+        self.puertoscom = tk.Label(self.root, text="Puertos COM disponibles: ", font=("Consolas", 14), bg='#191970', fg='white')
+        self.puertoscom.pack()
+        self.combo_puertos = ttk.Combobox(self.root, style="TCombobox")
+        self.combo_puertos.pack(pady=10, padx=10)
+        self.line_frame.pack(fill=tk.X)
+
+        # Actualizar puertos disponibles (RESTAURADO)
+        self.actualizar_puertos() # Llama al método al inicio
+        self.combo_puertos.bind("<Return>", self.conectar) # Llama al método de clase
+
+        # Textos para mostrar el estado
+        self.line_frame2 = tk.Frame(self.root, bg='#4169E1', height=5)
+        self.line_frame2.pack(fill=tk.X)
+
+        # Frame para textos y radar
+        self.textos_radar_frame = tk.Frame(self.root, bg='#191970')
+        self.textos_radar_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+        self.line_frame = tk.Frame(self.textos_radar_frame, bg='#4169E1', height=5)
+        self.line_frame.grid(row=1,column=0, columnspan=3, sticky=tk.W + tk.E) # Adjusted columnspan for grid
+        self.line_frame2 = tk.Frame(self.textos_radar_frame, bg='#4169E1', height=5)
+        self.line_frame2.grid(row=3,column=0, columnspan=3, sticky=tk.W + tk.E) # Adjusted columnspan for grid
+        self.baterialevel = tk.Label(self.textos_radar_frame, text="Velocidad: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.baterialevel.grid(row=5, column=0, pady=5, sticky=tk.W)
+        self.coneccionestado = tk.Label(self.textos_radar_frame, text="Conexion: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.coneccionestado.grid(row=7, column=0, pady=5, sticky=tk.W)
+        self.temperature = tk.Label(self.textos_radar_frame, text="Temperatura: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.temperature.grid(row=4, column=0, pady=5, sticky=tk.W)
+        self.precion = tk.Label(self.textos_radar_frame, text="Presion: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.precion.grid(row=4, column=1, pady=5, sticky=tk.W)
+        self.profundidad = tk.Label(self.textos_radar_frame, text="Profundidad: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.profundidad.grid(row=5, column=1, pady=5, sticky=tk.W)
+        self.DistanciaF = tk.Label(self.textos_radar_frame, text="Distancia frontal: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.DistanciaF.grid(row=6, column=1, pady=5, sticky=tk.W)
+        self.DistanciaI = tk.Label(self.textos_radar_frame, text="Distancia inferior: ", font=("Consolas", 16), bg='#191970', fg='white')
+        self.DistanciaI.grid(row=6, column=0, pady=5, sticky=tk.W)
+        #self.prediction_label = tk.Label(self.textos_radar_frame, text="Especie: ", font=("Consolas", 16), bg='#191970', fg='white')
+        #self.prediction_label.grid(row=3, column=0, pady=0, sticky=tk.W)
+        self.textos_radar_frame.grid_columnconfigure(0, weight=1, uniform="cols")
+        self.textos_radar_frame.grid_columnconfigure(1, weight=1, uniform="cols")
+        #self.textos_radar_frame.grid_rowconfigure(0, weight=1)
+        # Canvas para el radar (tamaño ajustado para mejor visualización del coche)
+        self.radar_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=465, height=180) # Increased height
+        self.radar_canvas.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        # Canvas para el controlmotores
+        self.motor_canvas = tk.Canvas(self.textos_radar_frame, bg='black', width=465, height=180) # Increased height
+        self.motor_canvas.grid(row=0, column=1,  padx=10, pady=10, sticky="nsew")   
+        # Canvas para radar
+        # Cargar la imagen del coche para el radar y el submarino para motores
+        self.car_image_path = r'C:\Users\brand\subma.jpg'
+        self.subma_image_path = r'C:\Users\brand\subma.jpg'
+        self.car_image_tk = None # Para mantener la referencia de PhotoImage
+        self.car_image_pil = None # Para mantener la referencia de la imagen PIL
+        self.subma_image_tk = None # Para mantener la referencia de PhotoImage
+        self.subma_image_pil = None # Para mantener la referencia de la imagen PIL
+        self.load_car_image() # Este método carga ambas imágenes ahora
+
+        self.line_frame = tk.Frame(self.textos_radar_frame, bg='#4169E1', height=5)
+        #self.line_frame.grid(row=6,column=0, columnspan=3, sticky=tk.W + tk.E) # Adjusted columnspan for grid
+         
+        # Frame para los botones
+        self.botones_frame = tk.Frame(self.textos_radar_frame, bg='#191970')
+        self.botones_frame.grid(row=2, column=0, columnspan=3, pady=5, sticky=tk.W + tk.E)
+
+        # Frame para los botones internos
+        button_frame = tk.Frame(self.botones_frame, bg='#191970')
+        button_frame.pack(pady=0, fill=tk.X )
+
+        # Boton lampara
+        self.funciones = tk.Label(button_frame, text="Funciones disponibles", font=("Consolas", 18), bg='#191970', fg='white')
+        self.funciones.pack(pady=(0, 20))
+        self.encenderluz = tk.Button(
+            button_frame,
+            text="  Iluminacion  ",                  # Emoji opcional para darle estilo
+            command=self.toggle_color,
+            font=("Consolas", 11, "bold"),       # Fuente más clara y negrita
+            bg="#FF961F",                        # Verde moderno (Material Design)
+            fg="white",                          # Texto blanco para contraste
+            activebackground="#F5F447",          # Color al presionar
+            activeforeground="white",            # Mantener contraste
+            relief="raised",                     # Relieve para resaltar
+            bd=3,                                # Grosor del borde
+            cursor="hand2"                       # Cursor de mano al pasar encima
+        )
+        #self.encenderluz = tk.Button(button_frame, text=" Iluminacion ", command=self.toggle_color, font=("Consolas", 10), bg="yellow", fg="black")
+        self.encenderluz.pack(side=tk.LEFT, padx=60,pady=(0,5))
+
+        # Boton motores
+        #self.motores = tk.Button(button_frame, text=" Velocidad ", command=self.toggle_color_motor, font=("Consolas", 10), bg="green", fg="black")
+        #self.motores.pack(side=tk.LEFT,padx=120,pady=(0, 5))
+        self.motores = tk.Button(
+            button_frame,
+            text="  Velocidad  ",                  # Emoji opcional para darle estilo
+            command=self.toggle_color_motor,
+            font=("Consolas", 11, "bold"),       # Fuente más clara y negrita
+            bg="#00C21C",                        # Verde moderno (Material Design)
+            fg="white",                          # Texto blanco para contraste
+            activebackground="#00C21B",          # Color al presionar
+            activeforeground="white",            # Mantener contraste
+            relief="raised",                     # Relieve para resaltar
+            bd=3,                                # Grosor del borde
+            cursor="hand2"                       # Cursor de mano al pasar encima
+        )
+        self.motores.pack(side=tk.LEFT, padx=50, pady=(0, 8))
+        # Boton modo automatico
+        #self.Automatico = tk.Button(button_frame, text=" Modo ", command=self.toggle_color_manual, font=("Consolas", 10), bg="blue", fg="black")
+        self.Automatico = tk.Button(
+            button_frame,
+            text="  Modo de operacion  ",                  # Emoji opcional para darle estilo
+            command=self.toggle_color_manual,
+            font=("Consolas", 11, "bold"),       # Fuente más clara y negrita
+            bg="#180BBC",                        # Verde moderno (Material Design)
+            fg="white",                          # Texto blanco para contraste
+            activebackground="#220CF3",          # Color al presionar
+            activeforeground="white",            # Mantener contraste
+            relief="raised",                     # Relieve para resaltar
+            bd=3,                                # Grosor del borde
+            cursor="hand2"                       # Cursor de mano al pasar encima
+        )
+        self.Automatico.pack(side=tk.LEFT,padx=60,pady=(0, 5)) 
+        self.capture = None
+        self.running = False
+        self.baud_rate = 115200 # Default baud rate
+        self.Ser = None # Initialize serial port to None
+
+        # Variables para el radar
+        self.radar_points = [] # Lista para almacenar (distancia, angulo) de las detecciones
+        self.distance_text = None # Para el texto de distancia
+
+        # Variable para el movimiento del submarino (para update_motores)
+        self.movimientosub = 1 # Valor inicial, se actualizará desde el serial
+
+        # Iniciar las actualizaciones
+        self.read_serial()
+        self.start_camera()
+        self.update_radar() # Inicia la actualización del radar
+        self.update_motores() # Inicia la actualización de los motores
+
+    def load_car_image(self):
+        try:
+            # Cargar y redimensionar imagen para el radar (car_image)
+            self.car_image_pil = Image.open(self.car_image_path)
+            target_car_width = 260 # Ancho deseado para la imagen del coche
+            aspect_ratio_car = self.car_image_pil.height / self.car_image_pil.width
+            target_car_height = int(target_car_width * aspect_ratio_car)
+
+            self.car_image_tk = ImageTk.PhotoImage(
+                self.car_image_pil.resize((target_car_width, target_car_height), Image.Resampling.LANCZOS)
+            )
+
+            # Cargar y redimensionar imagen para los motores (subma_image)
+            self.subma_image_pil = Image.open(self.subma_image_path)
+            target_subma_width = 220 # Ancho deseado para la imagen del submarino
+            aspect_ratio_subma = self.subma_image_pil.height / self.subma_image_pil.width
+            target_subma_height = int(target_subma_width * aspect_ratio_subma)
+
+            self.subma_image_tk = ImageTk.PhotoImage(
+                self.subma_image_pil.resize((target_subma_width, target_subma_height), Image.Resampling.LANCZOS)
+            )
+        except FileNotFoundError:
+            messagebox.showwarning("Advertencia", f"Una o ambas imágenes ('{self.car_image_path}' o '{self.subma_image_path}') no se encontraron.")
+            self.car_image_tk = None
+            self.car_image_pil = None
+            self.subma_image_tk = None
+            self.subma_image_pil = None
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar una o ambas imágenes: {e}")
+            self.car_image_tk = None
+            self.car_image_pil = None
+            self.subma_image_tk = None
+            self.subma_image_pil = None
+
+    # Método para actualizar la lista de puertos COM (RESTAURADO)
+    def actualizar_puertos(self):
+        puertos_disponibles = [port.device for port in serial.tools.list_ports.comports()]
+        self.combo_puertos['values'] = puertos_disponibles
+        if puertos_disponibles:
+            # Si el puerto actual no está en la lista o no hay conexión, selecciona el primero
+            if self.combo_puertos.get() not in puertos_disponibles or not (hasattr(self, 'Ser') and self.Ser and self.Ser.is_open):
+                self.combo_puertos.current(0)
+        self.root.after(2000, self.actualizar_puertos) # Actualiza cada 2 segundos
+
+    # Método para conectar al puerto serial (RESTAURADO)
+    def conectar(self, event=None):
+
+        puerto = self.combo_puertos.get()
+        if puerto:
+            try:
+                if self.Ser and self.Ser.is_open:
+                    self.Ser.close() # Cierra la conexión existente si la hay
+                self.Ser = serial.Serial(puerto, self.baud_rate, timeout=1)
+                messagebox.showinfo("Conexion exitosa", f"Se ha conectado al microcontrolador en {puerto}.")
+                self.coneccionestado.config(text="Conexion: Conectado")
+            except Exception as e:
+                messagebox.showerror("Error de conexion", f"Error al conectar: {e}")
+                self.coneccionestado.config(text="Conexion: Desconectado  ")
+                self.Ser = None
+
+    def read_serial(self):
+        try:
+            if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open and self.Ser.in_waiting > 0:
+                respuesta = self.Ser.readline().decode('utf-8').rstrip()
+                # self.coneccionestado.config(text=f"Estado: {respuesta}") # Esto podría sobrescribir otros estados
+                fragmentos = respuesta.split(",")
+                # Actualizar datos de telemetría 
+                if len(fragmentos) >= 8:
+                    Eprofundidad, Econexion, Evel, Etem, Epreci,ED,EA,movimientosub = fragmentos[0], fragmentos[1], fragmentos[2], fragmentos[3], fragmentos[4],fragmentos[5],fragmentos[6],fragmentos[7]
+                    self.coneccionestado.config(text=f"Conexion: {Econexion}        ")
+                    self.baterialevel.config(text=f"Velocidad: {Evel} m/s")
+                    self.profundidad.config(text=f"Profundidad: {Eprofundidad} Metros")
+                    self.temperature.config(text=f"Temperatura: {Etem} °C")
+                    self.precion.config(text=f"Precion: {Epreci} bar")
+                    self.movimientosub = int(float(fragmentos[7]))
+                # Actualizar datos del radar y movimiento del submarino (asumiendo al menos 8 fragmentos)
+                if len(fragmentos) >= 8:
+                    try:
+                        self.distancia = float(fragmentos[5])
+                        self.disinferior = float(fragmentos[6])
+                        self.DistanciaF.config(text=f"Distancia frontal: {self.distancia:.2f} CM")
+                        self.DistanciaI.config(text=f"Distancia inferior: {self.disinferior:.2f} CM")
+                        print(f"Datos recibidos - Frontal: {self.distancia}, Inferior: {self.disinferior}")
+                    except ValueError:
+                        print(f"Datos de radar o movimiento no válidos: {fragmentos[5]}, {fragmentos[6]}, {fragmentos[7]}")
+            elif hasattr(self, 'Ser') and self.Ser and not self.Ser.is_open:
+                self.coneccionestado.config(text="Conexion: Desconectado (Puerto cerrado)")
+            else:
+                self.coneccionestado.config(text="Conexion: Desconectado    ")
+
+
+        except serial.SerialException as e:
+            self.coneccionestado.config(text=f"Error serial: {e}")
+            self.Ser = None # Marcar como no conectado
+        except Exception as e:
+            self.coneccionestado.config(text=f"Error de lectura: {e}")
+
+        self.root.after(10, self.read_serial) # Continuar leyendo en un bucle
+
+    def start_camera(self):
+        if self.running:
+            return
+        self.running = True
+        self.capture = cv2.VideoCapture(0) # Asegúrate de que este es el índice correcto de tu cámara
+        if not self.capture.isOpened():
+            messagebox.showerror("Error de Cámara", "No se pudo abrir la cámara. Asegúrate de que esté conectada y no esté en uso.")
+            self.running = False
+            return
+        self.update_camera()
+        
+    def update_camera(self):
+        if self.running and self.capture.isOpened():
+            ret, frame = self.capture.read()
+            if ret:
+                results = model(frame, conf=0.55, iou=0.45) # Manteniendo los filtros anteriores
+                
+                for result in results:
+                    boxes = result.boxes.cpu().numpy()
+                    if boxes is not None and len(boxes) > 0:
+                        for box in boxes:
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            confidence = box.conf[0]
+                            class_id = int(box.cls[0])
+                            class_name = model.names[class_id]
+                            label = f'{class_name}: {confidence:.2f}'
+    
+                            # Filtro por tamaño de caja
+                            # Define tus rangos mínimos y máximos
+                            min_width = 1
+                            min_height = 1
+                            max_width = 400
+                            max_height = 400
+    
+                            width = x2 - x1
+                            height = y2 - y1
+    
+                            # Aplica el filtro
+                            if width >= min_width and height >= min_height and width <= max_width and height <= max_height:
+    
+                                # Dibuja el bounding box
+                                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 102, 14), 2)
+    
+                                # Dibuja la etiqueta de la clase y la confianza
+                                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                                #self.prediction_label.config(text=f"Especie: {class_name}   ") # Actualiza la especie detectada
+                frame_width = 700
+                frame_height = 580      
+                img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img_pil = Image.fromarray(img_rgb)     
+                img_pil_resized = img_pil.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
+               
+                img_tk = ImageTk.PhotoImage(image=img_pil_resized)
+                self.camera_label.configure(image=img_tk)
+                self.camera_label.image = img_tk
+       
+            else:
+                print("Error: No se pudo leer el frame de la cámara.")
+                self.running = False
+    
+            self.camera_label.after(10, self.update_camera)
+        else:
+            self.stop_camera()
+
+    def stop_camera(self):
+        if self.capture is not None:
+            self.capture.release()
+        self.running = False
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            self.Ser.close()
+        self.root.destroy()
+
+    def toggle_color(self):
+
+        current_color = self.encenderluz.cget("bg")
+        new_color = "dark red" if current_color == "yellow" else "yellow"
+        self.encenderluz.config(bg=new_color)
+        commando = "LOFF" if new_color == "dark red" else "LON"
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            try:
+                self.Ser.write(commando.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+        if new_color == "dark red":
+            text_color = "white"
+            button_text = " Luz Apagada "
+        else: # yellow
+            text_color = "black"
+            button_text = " Luz Encendida "
+        self.encenderluz.config(fg=text_color, text=button_text)
+
+    def toggle_color_motor(self):
+        current_color = self.motores.cget("bg")
+        new_color = "dark green" if current_color == "green" else "green" # Alterna entre verde y verde oscuro
+        self.motores.config(bg=new_color)
+        commandom = "MLOW" if new_color == "dark green" else "MHIGH" # Ajusta los comandos a tu microcontrolador
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            try:
+                self.Ser.write(commandom.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+
+        if new_color == "dark green":
+            text_color = "white"
+            button_text = " Velocidad Baja "
+        else: # green
+            text_color = "white"
+            button_text = " Velocidad Alta "
+        self.motores.config(fg=text_color, text=button_text)
+
+                
+    def toggle_color_manual(self):
+        current_color = self.Automatico.cget("bg")
+        new_color = "dark blue" if current_color == "blue" else "blue"
+        self.Automatico.config(bg=new_color)
+        # Asumiendo que "MM" es Modo Manual y "MA" es Modo Automático
+        commandom = "MM" if new_color == "dark blue" else "MA"
+        if hasattr(self, 'Ser') and self.Ser and self.Ser.is_open:
+            try:
+                self.Ser.write(commandom.encode())
+            except serial.SerialException as e:
+                messagebox.showerror("Error Serial", f"No se pudo enviar el comando: {e}")
+                self.Ser = None
+
+        if new_color == "dark blue":
+            text_color = "white"
+            button_text = " Pseudoautomático "
+        else: # blue
+            text_color = "white"
+            button_text = "   Automático   "
+        self.Automatico.config(fg=text_color, text=button_text)
+    def get_color_from_distance(self, distance):
+            """Determina el color de las ondas según la distancia."""
+            if distance <= 15:
+                return 'red'
+            elif distance <= 25:
+                return 'yellow'
+            else:
+                return 'green'
+    def update_radar(self):
+        self.radar_canvas.delete("all") # Borra todo el contenido anterior del canvas
+
+        self.canvas_width = 465
+        self.canvas_height = 180
+        sub_center_x = (self.canvas_width / 2) - 70
+        if self.car_image_tk:
+            sub_image_height = self.car_image_tk.height()
+            sub_image_width = self.car_image_tk.width()
+        else:
+            sub_image_height = 50
+            sub_image_width = 100
+            
+        sub_center_y = self.canvas_height - (sub_image_height / 2) - 50
+
+        if self.car_image_tk:
+            self.radar_canvas.create_image(sub_center_x, sub_center_y, image=self.car_image_tk, anchor=tk.CENTER)
+        
+        # Define los bordes para dibujar el radar
+        sub_top_edge = sub_center_x - sub_image_height / 2
+        sub_bottom_edge = sub_center_y + sub_image_height / 2
+        sub_right_edge = sub_center_x + sub_image_width / 2
+        origin_front_radar = (sub_right_edge, sub_center_y+30)
+        origin_bottom_radar = (sub_center_x, sub_bottom_edge)
+        
+        # Establece un radio máximo para que las ondas no se salgan del canvas
+        max_radius_front_radar = sub_top_edge - 10
+        max_radius_bottom_radar = self.canvas_height - sub_bottom_edge - 0
+        
+        num_arcs = 6
+
+        # --- Lógica de color separada para cada sensor ---
+        color_front_radar = self.get_color_from_distance(self.distancia)
+        color_bottom_radar = self.get_color_from_distance(self.disinferior)
+
+        # Dibujar arcos para el sensor frontal (usando self.distancia)
+        for i in range(1, num_arcs + 1):
+            # El radio se ajusta en base a la distancia actual, para que solo se dibuje hasta la distancia detectada
+            arc_radius = (self.distancia / num_arcs) * i
+            
+            if arc_radius > max_radius_front_radar:
+                arc_radius = max_radius_front_radar
+
+            self.radar_canvas.create_arc(
+                origin_front_radar[0] - arc_radius, origin_front_radar[1] - arc_radius,
+                origin_front_radar[0] + arc_radius, origin_front_radar[1] + arc_radius,
+                start=320, extent=100, outline=color_front_radar, width=1, style=tk.ARC
+            )
+
+        # Dibujar arcos para el sensor inferior (usando self.disinferior)
+        for i in range(1, num_arcs + 1):
+            arc_radius = (self.disinferior / num_arcs) * i
+            if arc_radius > max_radius_bottom_radar:
+                arc_radius = max_radius_bottom_radar
+                
+            self.radar_canvas.create_arc(
+                origin_bottom_radar[0] - arc_radius, origin_bottom_radar[1] - arc_radius,
+                origin_bottom_radar[0] + arc_radius, origin_bottom_radar[1] + arc_radius,
+                start=220, extent=100, outline=color_bottom_radar, width=1, style=tk.ARC
+            )
+        
+        # --- Actualizar los textos de distancia para ambos sensores ---
+        if self.distance_text_main:
+            self.radar_canvas.delete(self.distance_text_main)
+        if self.distance_text_bottom:
+            self.radar_canvas.delete(self.distance_text_bottom)
+
+        #self.distance_text_main = self.radar_canvas.create_text(
+        #    self.canvas_width / 2, 10,
+        #    text=f"Distancia Frontal: {self.distancia:.2f} cm", fill=color_front_radar, anchor=tk.N
+        #)
+        #self.distance_text_bottom = self.radar_canvas.create_text(
+        #      self.canvas_width / 2, 30,
+        #     text=f"Distancia Inferior: {self.disinferior:.2f} cm", fill=color_bottom_radar, anchor=tk.N
+        #)
+
+        self.root.after(50, self.update_radar)
+
+
+    def update_motores(self):
+
+        self.motor_canvas.delete("all") # Borra todo el contenido anterior del canvas
+
+        canvas_width = 465
+        canvas_height = 180
+
+        sub_center_x = (canvas_width / 2)- 50
+        sub_image_height = self.subma_image_tk.height() if self.subma_image_tk else 50
+        sub_image_width = self.subma_image_tk.width() if self.subma_image_tk else 100
+        sub_center_y = canvas_height - (sub_image_height / 2) - 100
+        
+        if self.movimientosub >= 7 and self.movimientosub <= 11:
+            sub_center_y += 50 
+        elif self.movimientosub == 1:
+            sub_center_y += 40  
+            sub_center_x = (canvas_width / 2) -30
+        elif self.movimientosub == 12:
+            sub_center_y += 40 
+        elif self.movimientosub == 13:
+            sub_center_y += 40  
+            sub_center_x = (canvas_width / 2) -30
+        elif self.movimientosub == 14:
+            sub_center_y += 40 
+            sub_center_x = (canvas_width / 2) +30
+        if self.subma_image_tk:
+            self.motor_canvas.create_image(sub_center_x, sub_center_y, image=self.subma_image_tk, anchor=tk.CENTER)
+        else:
+            self.motor_canvas.create_rectangle(
+                sub_center_x - sub_image_width / 2, sub_center_y - sub_image_height / 2,
+                sub_center_x + sub_image_width / 2, sub_center_y + sub_image_height / 2,
+                fill='gray', outline='white', width=1, tags="submarino_placeholder"
+            )
+
+        # Definir las coordenadas de los bordes del submarino
+        sub_left_edge = sub_center_x - sub_image_width / 2
+        sub_right_edge = sub_center_x + sub_image_width / 2
+        sub_top_edge = sub_center_y - sub_image_height / 2
+        sub_bottom_edge = sub_center_y + sub_image_height / 2
+
+        # Definir los orígenes del radar desde los bordes del submarino
+        # Ajustes para que los orígenes estén más cerca del borde visual del submarino
+        origin_bottom = (sub_center_x + 55, sub_bottom_edge) # Un poco a la derecha del centro
+        origin_bottom2 = (sub_center_x - 55, sub_bottom_edge) # Un poco a la izquierda del centro
+        origin_left = (sub_left_edge, sub_center_y)
+        origin_right = (sub_right_edge, sub_center_y)
+        origin_front = (sub_center_x+55, sub_top_edge)
+        origin_front2 = (sub_center_x-55, sub_top_edge)
+
+        # Calcular el radio máximo para las ondas en cada dirección
+        # Asegurarse de que los radios sean positivos
+        max_radius_bottom = max(0, canvas_height - sub_bottom_edge - 10)
+        max_radius_left = max(0, sub_left_edge - 10)
+        max_radius_right = max(0, canvas_width - sub_right_edge - 10)
+        max_radius_front = max(0, sub_top_edge - 10)
+        valid_radii = [r for r in [max_radius_bottom, max_radius_left, max_radius_right, max_radius_front] if r > 0]
+        max_display_radius = min(valid_radii) if valid_radii else 45
+        # Asegurar un radio mínimo para que siempre se vean ondas
+        if max_display_radius < 45:
+            max_display_radius = 45
+        global_arc_color = 'blue'
+        num_arcs = 5 # Número de arcos a dibujar
+        arc_step_pixels = max_display_radius / num_arcs # Espacio entre arcos
+        # Dibujar arcos basados en el valor de self.movimientosub
+        for i in range(1, num_arcs + 1):
+            radius = i * arc_step_pixels
+            if self.movimientosub == 1: # Movimiento hacia adelante/arriba
+                global_arc_color = 'black' 
+                self.motor_canvas.create_arc(
+                origin_bottom[0] - radius, origin_bottom[1] - radius+8,
+                origin_bottom[0] + radius, origin_bottom[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )
+                self.motor_canvas.create_arc(
+                origin_bottom2[0] - radius, origin_bottom2[1] - radius+8,
+                origin_bottom2[0] + radius, origin_bottom2[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )
+            elif self.movimientosub == 2: # Movimiento hacia adelante/arriba
+                global_arc_color = 'blue' 
+                self.motor_canvas.create_arc(
+                origin_bottom[0] - radius, origin_bottom[1] - radius+8,
+                origin_bottom[0] + radius, origin_bottom[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )
+                self.motor_canvas.create_arc(
+                origin_bottom2[0] - radius, origin_bottom2[1] - radius+8,
+                origin_bottom2[0] + radius, origin_bottom2[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )   
+            elif self.movimientosub == 3: # Movimiento hacia atrás/abajo
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                origin_bottom[0] - radius, origin_bottom[1] - radius+8,
+                origin_bottom[0] + radius, origin_bottom[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )
+            elif self.movimientosub == 4: # Movimiento hacia arriba
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                origin_bottom2[0] - radius, origin_bottom2[1] - radius+8,
+                origin_bottom2[0] + radius, origin_bottom2[1] + radius+8,
+                start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC
+                )
+            elif self.movimientosub == 5: # Movimiento hacia abajo
+                global_arc_color = 'red' 
+                global_arc_color1 = 'blue' 
+                self.motor_canvas.create_arc(
+                    origin_bottom[0] - radius, origin_bottom[1] - radius + 8,
+                    origin_bottom[0] + radius, origin_bottom[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color1, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_bottom2[0] - radius, origin_bottom2[1] - radius + 8,
+                    origin_bottom2[0] + radius, origin_bottom2[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 6: # Movimiento hacia abajo
+                global_arc_color = 'red' 
+                global_arc_color1 = 'blue' 
+                self.motor_canvas.create_arc(
+                    origin_bottom[0] - radius, origin_bottom[1] - radius + 8,
+                    origin_bottom[0] + radius, origin_bottom[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_bottom2[0] - radius, origin_bottom2[1] - radius + 8,
+                    origin_bottom2[0] + radius, origin_bottom2[1] + radius + 8,
+                    start=220, extent=100, outline=global_arc_color1, width=2, style=tk.ARC # Mayor ancho
+                )  
+            elif self.movimientosub == 7: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_front2[0] - radius, origin_front2[1] - radius -6,
+                    origin_front2[0] + radius, origin_front2[1] + radius -6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 8: # Movimiento hacia la derecha
+                global_arc_color = 'blue' 
+                global_arc_color2 = 'red'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_front2[0] - radius, origin_front2[1] - radius -6,
+                    origin_front2[0] + radius, origin_front2[1] + radius -6,
+                    start=40, extent=100, outline=global_arc_color2, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 9: # Movimiento hacia la derecha
+                global_arc_color = 'blue'
+                global_arc_color2 = 'red'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color2, width=2, style=tk.ARC # Mayor ancho
+                )
+                self.motor_canvas.create_arc(
+                    origin_front2[0] - radius, origin_front2[1] - radius -6,
+                    origin_front2[0] + radius, origin_front2[1] + radius -6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 10: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_front[0] - radius, origin_front[1] - radius - 6,
+                    origin_front[0] + radius, origin_front[1] + radius - 6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 11: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_front2[0] - radius, origin_front2[1] - radius -6,
+                    origin_front2[0] + radius, origin_front2[1] + radius -6,
+                    start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+            elif self.movimientosub == 12: # Movimiento hacia la izquierda
+                global_arc_color = 'black' 
+            elif self.movimientosub == 13: # Movimiento hacia la izquierda
+                global_arc_color = 'blue'
+                self.motor_canvas.create_arc(
+                    origin_right[0] - radius, origin_right[1] - radius -6,
+                    origin_right[0] + radius, origin_right[1] + radius -6,
+                    start=310, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )   
+            elif self.movimientosub == 14: 
+                global_arc_color = 'blue' 
+                self.motor_canvas.create_arc(
+                    origin_left[0] - radius, origin_left[1] - radius -6,
+                    origin_left[0] + radius, origin_left[1] + radius -6,
+                    start=130, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
+                )
+    
+        self.root.after(50, self.update_motores) # Continuar actualizando el radar
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CameraApp(root)
+    # Asegúrate de que stop_camera se llama al cerrar la ventana para liberar recursos
+    root.protocol("WM_DELETE_WINDOW", app.stop_camera)
+    root.mainloop()
