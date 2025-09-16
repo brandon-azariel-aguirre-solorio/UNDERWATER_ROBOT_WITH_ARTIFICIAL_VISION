@@ -24,13 +24,13 @@ class CameraApp:
         self.distance_text_main = None
         self.distance_text_bottom = None
         # Label para el título
-        self.title_label = tk.Label(self.root, text="Robot Submarino", font=("Consolas", 22), bg='#191970', fg='white')
-        self.title_label.pack(pady=5)
+        #self.title_label = tk.Label(self.root, text="Robot Submarino", font=("Consolas", 22), bg='#191970', fg='white')
+        #self.title_label.pack(pady=5)
 
         self.line_frame = tk.Frame(self.root, bg='#4169E1', height=5)
         self.line_frame.pack(fill=tk.X)
 
-        self.title_sublabel = tk.Label(self.root, text="Tesis Robot Submarino Con Vision Artificial", font=("Consolas", 22), bg='#191970', fg='white')
+        self.title_sublabel = tk.Label(self.root, text="Robot Submarino Con Vision Artificial", font=("Consolas", 22), bg='#191970', fg='white')
         self.title_sublabel.pack(pady=5)
         self.line_frame = tk.Frame(self.root, bg='#4169E1', height=5)
         self.line_frame.pack(fill=tk.X)
@@ -60,6 +60,7 @@ class CameraApp:
         self.puertoscom.pack()
         self.combo_puertos = ttk.Combobox(self.root, style="TCombobox")
         self.combo_puertos.pack(pady=10, padx=10)
+
         self.line_frame.pack(fill=tk.X)
 
         # Actualizar puertos disponibles (RESTAURADO)
@@ -193,6 +194,7 @@ class CameraApp:
         self.update_radar() # Inicia la actualización del radar
         self.update_motores() # Inicia la actualización de los motores
 
+  
     def load_car_image(self):
         try:
             # Cargar y redimensionar imagen para el radar (car_image)
@@ -302,13 +304,55 @@ class CameraApp:
             self.running = False
             return
         self.update_camera()
-        
     def update_camera(self):
         if self.running and self.capture.isOpened():
             ret, frame = self.capture.read()
             if ret:
-                results = model(frame, conf=0.55, iou=0.45) # Manteniendo los filtros anteriores
-                
+                # Ahora no se usan filtros globales, se aplican a nivel de clase
+                results = model(frame)
+    
+                # Diccionario para almacenar los filtros de confianza por clase
+                conf_filters = {
+                    'Anguila': 0.65,
+                    'Ballena': 0.60,
+                    'Cangrejo': 0.55,
+                    'Cocodrilo': 0.70,
+                    'Delphin': 0.80,
+                    'Erizo': 0.85,
+                    'Estrella': 0.80,
+                    'Mantarraya': 0.65,
+                    'Medusa': 0.70,
+                    'Orca': 0.85,
+                    'Pez_Chico': 0.40,
+                    'Pez_Grande': 0.65,
+                    'Pez_Mediano': 0.60,
+                    'Pulpo': 0.70,
+                    'Sea_horse': 0.50,
+                    'Tiburon': 0.85,
+                    'Tortuga': 0.75
+                }
+    
+                # Diccionario para los filtros de tamaño por clase
+                class_size_filters = {
+                    'Anguila': (10, 50, 200, 500),
+                    'Ballena': (100, 100, 800, 800),
+                    'Cangrejo': (20, 20, 150, 150),
+                    'Cocodrilo': (50, 100, 600, 700),
+                    'Delphin': (80, 80, 500, 500),
+                    'Erizo': (10, 10, 60, 60),
+                    'Estrella': (15, 15, 80, 80),
+                    'Mantarraya': (70, 70, 450, 450),
+                    'Medusa': (30, 30, 250, 250),
+                    'Orca': (120, 120, 700, 700),
+                    'Pez_Chico': (5, 5, 50, 50),
+                    'Pez_Grande': (60, 60, 400, 400),
+                    'Pez_Mediano': (25, 25, 120, 120),
+                    'Pulpo': (40, 40, 300, 300),
+                    'Sea_horse': (5, 20, 40, 100),
+                    'Tiburon': (90, 90, 600, 600),
+                    'Tortuga': (50, 50, 350, 350)
+                }
+    
                 for result in results:
                     boxes = result.boxes.cpu().numpy()
                     if boxes is not None and len(boxes) > 0:
@@ -317,45 +361,39 @@ class CameraApp:
                             confidence = box.conf[0]
                             class_id = int(box.cls[0])
                             class_name = model.names[class_id]
-                            label = f'{class_name}: {confidence:.2f}'
+                            
+                            required_confidence = conf_filters.get(class_name, 0.50)
+                            size_filters = class_size_filters.get(class_name)
     
-                            # Filtro por tamaño de caja
-                            # Define tus rangos mínimos y máximos
-                            min_width = 1
-                            min_height = 1
-                            max_width = 400
-                            max_height = 400
+                            if confidence >= required_confidence and size_filters:
+                                min_width, min_height, max_width, max_height = size_filters
+                                
+                                width = x2 - x1
+                                height = y2 - y1
     
-                            width = x2 - x1
-                            height = y2 - y1
-    
-                            # Aplica el filtro
-                            if width >= min_width and height >= min_height and width <= max_width and height <= max_height:
-    
-                                # Dibuja el bounding box
-                                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 102, 14), 2)
-    
-                                # Dibuja la etiqueta de la clase y la confianza
-                                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                                #self.prediction_label.config(text=f"Especie: {class_name}   ") # Actualiza la especie detectada
-                frame_width = 700
-                frame_height = 580      
+                                if min_width <= width <= max_width and min_height <= height <= max_height:
+                                    label = f'{class_name}: {confidence:.2f}'
+                                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 102, 14), 2)
+                                    cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                            
+                frame_width = 680
+                frame_height = 640
                 img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img_pil = Image.fromarray(img_rgb)     
+                img_pil = Image.fromarray(img_rgb)
                 img_pil_resized = img_pil.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
-               
+                
                 img_tk = ImageTk.PhotoImage(image=img_pil_resized)
                 self.camera_label.configure(image=img_tk)
                 self.camera_label.image = img_tk
-       
+        
             else:
                 print("Error: No se pudo leer el frame de la cámara.")
                 self.running = False
-    
+        
             self.camera_label.after(10, self.update_camera)
         else:
-            self.stop_camera()
-
+            self.stop_camera()    
+    
     def stop_camera(self):
         if self.capture is not None:
             self.capture.release()
