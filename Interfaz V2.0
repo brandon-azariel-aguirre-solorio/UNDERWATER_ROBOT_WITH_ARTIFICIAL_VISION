@@ -4,6 +4,7 @@ import numpy as np
 import tkinter as tk
 import serial
 import time
+import math
 from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import serial.tools.list_ports 
@@ -542,14 +543,7 @@ class CameraApp:
         if self.distance_text_bottom:
             self.radar_canvas.delete(self.distance_text_bottom)
 
-        #self.distance_text_main = self.radar_canvas.create_text(
-        #    self.canvas_width / 2, 10,
-        #    text=f"Distancia Frontal: {self.distancia:.2f} cm", fill=color_front_radar, anchor=tk.N
-        #)
-        #self.distance_text_bottom = self.radar_canvas.create_text(
-        #      self.canvas_width / 2, 30,
-        #     text=f"Distancia Inferior: {self.disinferior:.2f} cm", fill=color_bottom_radar, anchor=tk.N
-        #)
+
 
         self.root.after(50, self.update_radar)
 
@@ -630,7 +624,7 @@ class CameraApp:
     
         for i in range(1, num_arcs + 1):
             radius = i * arc_step_pixels
-            if self.movimientosub == 5:
+            if self.movimientosub == 1:
                 global_arc_color = 'black'
                 self.motor_canvas.create_arc(origin_bottom[0] - radius, origin_bottom[1] - radius+8,
                 origin_bottom[0] + radius, origin_bottom[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC)
@@ -646,7 +640,7 @@ class CameraApp:
                 origin_bottom[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC)
                 self.motor_canvas.create_arc(origin_bottom2[0] - radius, origin_bottom2[1] - radius+8, origin_bottom2[0] + radius,
                 origin_bottom2[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC)
-            elif self.movimientosub == 1:#BAJA
+            elif self.movimientosub == 5:#BAJA
                 global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                     origin_front[0] - radius, origin_front[1] - radius - 6,
@@ -659,9 +653,108 @@ class CameraApp:
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
             elif self.movimientosub == 6:#Rotacion izquierda
-                global_arc_color = 'black'
+                image_draw_x = sub_center_x_left - 130
+                image_draw_y = sub_center_y - 5
+                
+                # Punto de origen del arco (ajustar para que salga del submarino)
+                arc_origin_x = image_draw_x - (sub_image_width / 2) + 20 # Ajusta offset X
+                arc_origin_y = image_draw_y - (sub_image_height / 2) + 20 # Ajusta offset Y
+                arc_radius = 20 # Radio del arco
+                start_angle = 350 
+                extent_angle = 110 
+                
+                # Dibujar el arco
+                self.motor_canvas.create_arc(
+                    arc_origin_x, arc_origin_y,
+                    arc_origin_x + 2 * arc_radius, arc_origin_y + 2 * arc_radius, # Caja delimitadora
+                    start=start_angle, extent=extent_angle, style=tk.ARC, outline='red', width=3
+                )
+                
+                end_angle_degrees = start_angle + extent_angle
+                
+                # Convertir a radianes para cálculos trigonométricos
+                end_angle_radians = math.radians(end_angle_degrees)
+                
+                # Coordenadas del punto final del arco
+                arc_end_x = arc_origin_x + arc_radius + arc_radius * math.cos(end_angle_radians)
+                arc_end_y = arc_origin_y + arc_radius - arc_radius * math.sin(end_angle_radians) # Restar para el eje Y de la pantalla
+                tangent_angle_degrees = end_angle_degrees - 100 
+                tangent_angle_radians = math.radians(tangent_angle_degrees)
+                
+                # Parámetros de la punta de la flecha
+                arrowhead_size = 10 # Tamaño de los lados de la punta de la flecha
+                arrowhead_angle_offset = math.radians(30) # Ángulo para las "alas" de la punta
+    
+                # Puntos de la punta de flecha
+                point1_x = arc_end_x
+                point1_y = arc_end_y
+                
+                # Calcula los otros dos puntos de la punta del triángulo
+                point2_x = arc_end_x + arrowhead_size * math.cos(tangent_angle_radians + arrowhead_angle_offset)
+                point2_y = arc_end_y - arrowhead_size * math.sin(tangent_angle_radians + arrowhead_angle_offset) # Y invertido
+                
+                point3_x = arc_end_x + arrowhead_size * math.cos(tangent_angle_radians - arrowhead_angle_offset)
+                point3_y = arc_end_y - arrowhead_size * math.sin(tangent_angle_radians - arrowhead_angle_offset) # Y invertido
+    
+                self.motor_canvas.create_polygon(
+                    point1_x, point1_y,
+                    point2_x, point2_y,
+                    point3_x, point3_y,
+                    fill='red', outline='red'
+                )
             elif self.movimientosub == 7:#Roracion Derecha
-                global_arc_color = 'blue'
+                # Coordenadas de la imagen del submarino
+                image_draw_x = sub_center_x_left - 145
+                image_draw_y = sub_center_y - 5
+                
+                # Punto de origen del arco (ajustar para que salga del submarino)
+                arc_origin_x = image_draw_x - (sub_image_width / 2) + 20 # Ajusta offset X
+                arc_origin_y = image_draw_y - (sub_image_height / 2) + 20 # Ajusta offset Y
+                
+                arc_radius = 20 
+                start_angle = 180 
+                extent_angle = -110
+                
+                # Dibujar el arco
+                self.motor_canvas.create_arc(
+                    arc_origin_x, arc_origin_y,
+                    arc_origin_x + 2 * arc_radius, arc_origin_y + 2 * arc_radius, # Caja delimitadora
+                    start=start_angle, extent=extent_angle, style=tk.ARC, outline='red', width=3
+                )
+                
+                end_angle_degrees = start_angle + extent_angle
+                
+                # Convertir a radianes para cálculos trigonométricos
+                end_angle_radians = math.radians(end_angle_degrees)
+                
+                # Coordenadas del punto final del arco
+                arc_end_x = arc_origin_x + arc_radius + arc_radius * math.cos(end_angle_radians)
+                arc_end_y = arc_origin_y + arc_radius - arc_radius * math.sin(end_angle_radians) # Restar para el eje Y de la pantalla
+
+                tangent_angle_degrees = end_angle_degrees + 100 
+                tangent_angle_radians = math.radians(tangent_angle_degrees)
+                
+                # Parámetros de la punta de la flecha
+                arrowhead_size = 10 # Tamaño de los lados de la punta de la flecha
+                arrowhead_angle_offset = math.radians(30) # Ángulo para las "alas" de la punta
+    
+                # Puntos de la punta de flecha
+                point1_x = arc_end_x
+                point1_y = arc_end_y
+                
+                # Calcula los otros dos puntos de la punta del triángulo
+                point2_x = arc_end_x + arrowhead_size * math.cos(tangent_angle_radians + arrowhead_angle_offset)
+                point2_y = arc_end_y - arrowhead_size * math.sin(tangent_angle_radians + arrowhead_angle_offset) # Y invertido
+                
+                point3_x = arc_end_x + arrowhead_size * math.cos(tangent_angle_radians - arrowhead_angle_offset)
+                point3_y = arc_end_y - arrowhead_size * math.sin(tangent_angle_radians - arrowhead_angle_offset) # Y invertido
+    
+                self.motor_canvas.create_polygon(
+                    point1_x, point1_y,
+                    point2_x, point2_y,
+                    point3_x, point3_y,
+                    fill='red', outline='red'
+                )
                 
         self.root.after(50, self.update_motores) # Continuar actualizando el radar
 if __name__ == "__main__":
