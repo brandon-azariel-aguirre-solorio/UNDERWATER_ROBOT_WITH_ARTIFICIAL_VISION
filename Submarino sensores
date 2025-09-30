@@ -1,0 +1,219 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <I2Cdev.h>
+#include <MPU6050_6Axis_MotionApps20.h>
+#include <SparkFun_MS5803_I2C.h>
+
+MPU6050 mpu;
+MS5803 sensor(ADDRESS_HIGH);
+
+#define DE_RE 2     // Control de dirección del MAX485  Revisa este espacio
+#define RX_RS485 5  // Pin de recepción RS485
+#define TX_RS485 4
+double temperature_c;
+double pressure_abs;
+double profundida_m;
+double presion_superficie_mbar;
+int lampara = 0, Emotores = 1, Emodooperacion = 2;
+float profundidad = 1;
+float velocidadX = 0;
+bool movimientoDetectado;
+unsigned long tiempoAnterior = 0;
+
+int movimiento = 1;
+const float UMBRAL_ANGULO = 10.0;
+const float UMBRAL_ANGULOYAW = 20.0;
+const float UMBRAL_GIRO = 20.0;
+int velocidad = 1;
+float presure = 0;
+int disradsuper1 = 0, disradinferior = 0, disradsuper2 = 0, tem = 0;
+int distotalradf = 0;
+
+SoftwareSerial rs485(RX_RS485, TX_RS485);
+int SL1trigPin = 2, SL1echoPin = 3;
+int SL2trigPin = 6, SL2echoPin = 7;
+int SItrigPin = 10, SIechoPin = 11;
+int duracionSL1 = 0, distanciaSL1 = 0;
+int duracionSL2 = 0, distanciaSL2 = 0;
+int duracionSI = 0, distanciaSI = 0;
+int anguloradar = 0, dis = 0;
+String conectado = "conectado";
+#define DEBUG(a) Serial.println(a);
+String data = "", codigo = "";
+bool dmpReady = false;
+uint8_t devStatus;
+uint16_t packetSize;
+uint8_t fifoBuffer[64];
+Quaternion q;
+VectorFloat gravity;
+VectorInt16 aav;
+VectorInt16 aaReal;
+float ypr[3];  // Yaw, Pitch, Roll
+const float RAW_TO_MS2 = 9.81 / 16384.0;
+const float ACCEL_THRESHOLD_MS2 = 0.05;
+const float EVENT_THRESHOLD_MS2 = 0.5;
+float current_vx = 0.0;
+float current_vy = 0.0;
+float current_vz = 0.0;
+unsigned long last_time;
+float delta_t_sec = 0.0;
+int velocidadZ = 0;
+void setup() {
+  Serial.begin(115200);
+  rs485.begin(115200);
+  Wire.begin();
+  sensor.reset();
+  sensor.begin();
+  presion_superficie_mbar = sensor.getPressure(ADC_4096);
+  mpu.initialize();
+  if (!mpu.testConnection()) {
+
+  } else {
+    devStatus = mpu.dmpInitialize();
+    if (devStatus == 0) {
+      // *** INSERTAR OFFFSETS DE CALIBRACIÓN AQUÍ ***
+      // mpu.setXGyroOffset(220);
+      // ... etc.
+      mpu.setDMPEnabled(true);
+      dmpReady = true;
+      packetSize = mpu.dmpGetFIFOPacketSize();
+    } else {
+      Serial.print(F("Fallo la inicializacion DMP. Error: "));
+      Serial.println(devStatus);
+    }
+  }
+  pinMode(SL1trigPin, OUTPUT);
+  pinMode(SL1echoPin, INPUT);
+  pinMode(SL2trigPin, OUTPUT);
+  pinMode(SL2echoPin, INPUT);
+  pinMode(SItrigPin, OUTPUT);
+  pinMode(SIechoPin, INPUT);
+  tiempoAnterior = micros();
+}
+
+void loop() {
+  sensor_precion();
+  lectura_acelerometro();
+  sonar1();
+  sonar2();
+  sonar3();
+
+  distanciaSL1 = duracionSL1 * 0.034 / 2;
+  distanciaSL2 = duracionSL2 * 0.034 / 2;
+  distanciaSI = duracionSI * 0.034 / 2;
+
+  disradsuper1 = distanciaSL1;
+  disradsuper2 = distanciaSL2;
+  disradinferior = distanciaSI;
+
+  if (disradsuper1 <= disradsuper2) {
+    distotalradf = disradsuper1;
+  } else if (disradsuper2 == 0) {
+    distotalradf = disradsuper1;
+  } else {
+    distotalradf = disradsuper2;
+  }
+
+  velocidad = abs((int)round(current_vx * 10));  // Convertir a entero (ej: 0.5 m/s -> 5)
+  String mensaje = String(profundidad) + "," + conectado + "," + String(velocidad) + "," + String(tem) + "," + String(presure) + "," + String(disradinferior) + "," + String(distotalradf) + "," + String(movimiento);
+  //rs485.println(mensaje);
+  Serial.println(mensaje);
+  delay(50);
+}
+void lectura_acelerometro() {
+  if (!dmpReady) {
+    mpu.getMotion6(NULL, NULL, NULL, NULL, NULL, NULL);
+    movimiento = (mpu.getRotationX() > 0) ? 6 : 7;
+    return;
+  }
+  if (mpu.getFIFOCount() < packetSize) return;
+  if (mpu.getFIFOCount() >= 1024) {
+    mpu.resetFIFO();
+    return;
+  }
+
+  mpu.getFIFOBytes(fifoBuffer, packetSize);
+  // 1. CALCULAR DELTA T
+  unsigned long now = micros();
+  delta_t_sec = (float)(now - last_time) / 1000000.0;
+  last_time = now;
+
+  // 2. OBTENER ACELERACIÓN LINEAL Y ORIENTACIÓN
+  mpu.dmpGetQuaternion(&q, fifoBuffer);
+  mpu.dmpGetGravity(&gravity, &q);
+  mpu.dmpGetAccel(&aav, fifoBuffer);
+  mpu.dmpGetLinearAccel(&aaReal, &aav, &gravity);
+  mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+  float a_x = (float)aaReal.x * RAW_TO_MS2;
+  float a_y = (float)aaReal.y * RAW_TO_MS2;
+  float a_z = (float)aaReal.z * RAW_TO_MS2;
+  if (abs(a_x) < ACCEL_THRESHOLD_MS2) a_x = 0;
+  if (abs(a_z) < ACCEL_THRESHOLD_MS2) a_z = 0;
+  current_vx += a_x * delta_t_sec;
+  current_vz += a_z * delta_t_sec;
+
+  if (a_x > EVENT_THRESHOLD_MS2) {
+    movimiento = 6;  //Avance
+  } else if (a_x < -EVENT_THRESHOLD_MS2) {
+    movimiento = 7;  //Retroceso
+  }
+  // Lógica de ASCENSO/DESCENSO (Eje Z) - Se prioriza sobre X si ambas ocurren
+  else if (a_z > EVENT_THRESHOLD_MS2) {
+    movimiento = 5;  // Elevando
+  } else if (a_z < -EVENT_THRESHOLD_MS2) {
+    movimiento = 4;  // Bajando
+  } else {
+    movimiento = 1;  // Reposo
+  }
+
+
+  /*
+  if (abs(yaw_deg) > UMBRAL_ANGULOYAW) {
+      movimiento = (yaw_deg > 0) ? 3 : 2; // Giro Derecha: 3, Giro Izquierda: 2
+  } 
+  */
+}
+void sensor_precion() {
+  temperature_c = sensor.getTemperature(CELSIUS, ADC_512);
+  pressure_abs = sensor.getPressure(ADC_4096);
+  double pressure_pa = pressure_abs * 100.0;
+  double presion_superficie_pa = presion_superficie_mbar * 100.0;
+  double densidad_agua = 1000.0;
+  double gravedad = 9.81;
+  profundida_m = (pressure_pa - presion_superficie_pa) / (densidad_agua * gravedad);
+
+  tem = temperature_c;
+  presure = pressure_abs;
+
+  if (profundida_m >= 0) {
+    profundidad = profundida_m;
+  } else {
+    profundidad = 0;
+  }
+}
+
+// Las funciones sonar1, sonar2 y sonar3 se mantienen sin cambios
+void sonar1() {
+  digitalWrite(SL1trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(SL1trigPin, HIGH);
+  delayMicroseconds(15);
+  digitalWrite(SL1trigPin, LOW);
+  duracionSL1 = pulseIn(SL1echoPin, HIGH, 26000);
+}
+void sonar2() {
+  digitalWrite(SL2trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(SL2trigPin, HIGH);
+  delayMicroseconds(15);
+  digitalWrite(SL2trigPin, LOW);
+  duracionSL2 = pulseIn(SL2echoPin, HIGH, 26000);
+}
+void sonar3() {
+  digitalWrite(SItrigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(SItrigPin, HIGH);
+  delayMicroseconds(15);
+  digitalWrite(SItrigPin, LOW);
+  duracionSI = pulseIn(SIechoPin, HIGH, 26000);
+}
