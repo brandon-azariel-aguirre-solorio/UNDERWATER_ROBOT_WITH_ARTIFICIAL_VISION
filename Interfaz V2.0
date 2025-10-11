@@ -245,7 +245,7 @@ class CameraApp:
             # Si el puerto actual no está en la lista o no hay conexión, selecciona el primero
             if self.combo_puertos.get() not in puertos_disponibles or not (hasattr(self, 'Ser') and self.Ser and self.Ser.is_open):
                 self.combo_puertos.current(0)
-        self.root.after(2000, self.actualizar_puertos) # Actualiza cada 2 segundos
+        self.root.after(1000, self.actualizar_puertos) # Actualiza cada 2 segundos
 
     # Método para conectar al puerto serial (RESTAURADO)
     def conectar(self, event=None):
@@ -281,11 +281,10 @@ class CameraApp:
                 # Actualizar datos del radar y movimiento del submarino (asumiendo al menos 8 fragmentos)
                 if len(fragmentos) >= 8:
                     try:
-                        self.distancia = float(fragmentos[5])
-                        self.disinferior = float(fragmentos[6])
+                        self.distancia = float(fragmentos[6])
+                        self.disinferior = float(fragmentos[5])
                         self.DistanciaF.config(text=f"Distancia frontal: {self.distancia:.2f} CM")
                         self.DistanciaI.config(text=f"Distancia inferior: {self.disinferior:.2f} CM")
-                        print(f"Datos recibidos - Frontal: {self.distancia}, Inferior: {self.disinferior}")
                     except ValueError:
                         print(f"Datos de radar o movimiento no válidos: {fragmentos[5]}, {fragmentos[6]}, {fragmentos[7]}")
             elif hasattr(self, 'Ser') and self.Ser and not self.Ser.is_open:
@@ -300,13 +299,13 @@ class CameraApp:
         except Exception as e:
             self.coneccionestado.config(text=f"Error de lectura: {e}")
 
-        self.root.after(10, self.read_serial) # Continuar leyendo en un bucle
+        self.root.after(1, self.read_serial) # Continuar leyendo en un bucle
 
     def start_camera(self):
         if self.running:
             return
         self.running = True
-        self.capture = cv2.VideoCapture(0) # Asegúrate de que este es el índice correcto de tu cámara
+        self.capture = cv2.VideoCapture(1) # Asegúrate de que este es el índice correcto de tu cámara
         if not self.capture.isOpened():
             messagebox.showerror("Error de Cámara", "No se pudo abrir la cámara. Asegúrate de que esté conectada y no esté en uso.")
             self.running = False
@@ -319,42 +318,42 @@ class CameraApp:
                 results = model(frame)
                 conf_filters = {
                     'Anguila': 0.85,
-                    'Ballena': 0.60,
-                    'Cangrejo': 0.55,
+                    'Ballena': 0.80,
+                    'Cangrejo': 0.15,
                     'Cocodrilo': 0.70,
-                    'Delphin': 0.80,
-                    'Erizo': 0.85,
-                    'Estrella': 0.80,
-                    'Mantarraya': 0.65,
+                    'Delphin': 0.60,
+                    'Erizo': 0.45,
+                    'Estrella': 0.40,
+                    'Mantarraya': 0.5,
                     'Medusa': 0.80,
                     'Orca': 0.85,
                     'Pez_Chico': 0.40,
                     'Pez_Grande': 0.65,
-                    'Pez_Mediano': 0.60,
+                    'Pez_Mediano': 0.30,
                     'Pulpo': 0.70,
                     'Sea_horse': 0.50,
-                    'Tiburon': 0.85,
+                    'Tiburon': 0.35,
                     'Tortuga': 0.75
                 }
     
                 # Diccionario para los filtros de tamaño por clase
                 class_size_filters = {
-                    'Anguila': (10, 50, 200, 500),
+                    'Anguila': (10, 10, 50, 100),
                     'Ballena': (100, 100, 800, 800),
-                    'Cangrejo': (20, 20, 150, 150),
-                    'Cocodrilo': (50, 100, 600, 700),
-                    'Delphin': (80, 80, 500, 500),
-                    'Erizo': (10, 10, 60, 60),
-                    'Estrella': (15, 15, 80, 80),
-                    'Mantarraya': (70, 70, 450, 450),
-                    'Medusa': (30, 30, 250, 250),
+                    'Cangrejo': (5, 5, 280, 280),
+                    'Cocodrilo': (50, 100, 700, 700),
+                    'Delphin': (80, 80, 700, 700),
+                    'Erizo': (5, 5, 120, 120),
+                    'Estrella': (5, 5, 190, 190),
+                    'Mantarraya': (50, 50, 300, 300),
+                    'Medusa': (10, 10, 350, 350),
                     'Orca': (120, 120, 700, 700),
-                    'Pez_Chico': (5, 5, 120, 120),
-                    'Pez_Grande': (60, 60, 400, 400),
-                    'Pez_Mediano': (25, 25, 220, 220),
+                    'Pez_Chico': (1, 1, 150, 150),
+                    'Pez_Grande': (80, 80, 500, 500),
+                    'Pez_Mediano': (25, 25, 250, 250),
                     'Pulpo': (40, 40, 300, 300),
                     'Sea_horse': (5, 20, 40, 100),
-                    'Tiburon': (90, 90, 600, 600),
+                    'Tiburon': (90, 90, 700, 700),
                     'Tortuga': (50, 50, 350, 350)
                 }
     
@@ -502,19 +501,18 @@ class CameraApp:
         origin_bottom_radar = (sub_center_x, sub_bottom_edge)
         
         # Establece un radio máximo para que las ondas no se salgan del canvas
-        max_radius_front_radar = sub_top_edge - 10
-        max_radius_bottom_radar = self.canvas_height - sub_bottom_edge - 0
-        
-        num_arcs = 6
+        max_radius_front_radar = sub_top_edge -50
+        max_radius_bottom_radar = self.canvas_height - sub_bottom_edge - 10
+        num_arcs = 10
 
         # --- Lógica de color separada para cada sensor ---
         color_front_radar = self.get_color_from_distance(self.distancia)
         color_bottom_radar = self.get_color_from_distance(self.disinferior)
 
         # Dibujar arcos para el sensor frontal (usando self.distancia)
-        for i in range(1, num_arcs + 1):
+        for i in range(1, num_arcs):
             # El radio se ajusta en base a la distancia actual, para que solo se dibuje hasta la distancia detectada
-            arc_radius = (self.distancia / num_arcs) * i
+            arc_radius = ((self.distancia*3) / num_arcs) * i
             
             if arc_radius > max_radius_front_radar:
                 arc_radius = max_radius_front_radar
@@ -526,8 +524,8 @@ class CameraApp:
             )
 
         # Dibujar arcos para el sensor inferior (usando self.disinferior)
-        for i in range(1, num_arcs + 1):
-            arc_radius = (self.disinferior / num_arcs) * i
+        for i in range(1, num_arcs):
+            arc_radius = ((self.disinferior*2.5) / (num_arcs-1)) * i
             if arc_radius > max_radius_bottom_radar:
                 arc_radius = max_radius_bottom_radar
                 
@@ -550,26 +548,19 @@ class CameraApp:
 
     def update_motores(self):
 
-        self.motor_canvas.delete("all")  # Borra todo el contenido anterior del canvas
+        self.motor_canvas.delete("all")  
     
         canvas_width = 465
         canvas_height = 180
-    
-        # Definir las posiciones X para las dos imágenes
-        # Usamos una posición relativa al centro para mantener el código claro
-        sub_center_x_left = (canvas_width / 2) - 50  # Posición para la imagen de la izquierda
-        sub_center_x_right = (canvas_width / 2) + 50 # Posición para la imagen de la derecha
-    
+        sub_center_x_left = (canvas_width / 2) - 30 
+        sub_center_x_right = (canvas_width / 2) + 50 
         sub_image_height = self.submaFR_image_tk.height() if self.submaFR_image_tk else 50
         sub_image_width = self.submaFR_image_tk.width() if self.submaFR_image_tk else 100
-        sub_center_y = canvas_height - (sub_image_height / 2) - 100
-    
-        # Aplica la lógica de movimiento a la posición Y y a las posiciones X si es necesario
-        if self.movimientosub >= 7 and self.movimientosub <= 11:
-            sub_center_y += 0
-        elif self.movimientosub == 1:
-            sub_center_y += 40
-            sub_center_x_left = (canvas_width / 2) - 30
+        sub_center_y = canvas_height - (sub_image_height / 2) - 60
+
+       # if self.movimientosub == 1:
+          #  sub_center_y += 40
+          #  sub_center_x_left = (canvas_width / 2) - 30
 
         # Dibuja la imagen de la izquierda (self.submaFR_image_tk)
         if self.submaFR_image_tk:
@@ -624,23 +615,96 @@ class CameraApp:
     
         for i in range(1, num_arcs + 1):
             radius = i * arc_step_pixels
-            if self.movimientosub == 1:
+            if self.movimientosub == 7:
                 global_arc_color = 'black'
                 self.motor_canvas.create_arc(origin_bottom[0] - radius, origin_bottom[1] - radius+8,
                 origin_bottom[0] + radius, origin_bottom[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC)
                 self.motor_canvas.create_arc(origin_bottom2[0] - radius, origin_bottom2[1] - radius+8,
                 origin_bottom2[0] + radius, origin_bottom2[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=1, style=tk.ARC)
-            elif self.movimientosub == 2: #DERECHA
-                global_arc_color = 'black'
-            elif self.movimientosub == 3:#IZQUIERDA
-                global_arc_color = 'black'
-            elif self.movimientosub == 4:#SUBE
+            elif self.movimientosub == 7: #DERECHA
+                #RETROCEDER
+                image_draw_x = sub_center_x_left + 120
+                image_draw_y = sub_center_y + 10
+                start_x = image_draw_x - (sub_image_width / 2) + 20 
+                start_y = image_draw_y - (sub_image_height / 2) + 20           
+                end_x = start_x - 120 
+                end_y = start_y 
+                self.motor_canvas.create_line(
+                    start_x, start_y, 
+                    end_x, end_y,
+                    arrow=tk.LAST,        
+                    fill='green',         
+                    width=7,
+                    arrowshape=(15, 15, 10) # (Tamaño de la punta, Tamaño de la base de la punta, Longitud de la base de la punta)
+                )
+                image_draw_x2 = sub_center_x_left + 120
+                image_draw_y2 = sub_center_y + 120
+                start_x2 = image_draw_x2 - (sub_image_width / 2) + 20
+                start_y2 = image_draw_y2 - (sub_image_height / 2) + 20          
+                end_x2 = start_x2 - 120 
+                end_y2 = start_y2 
+                self.motor_canvas.create_line(
+                    start_x2, start_y2, 
+                    end_x2, end_y2,
+                    arrow=tk.LAST,        
+                    fill='green',         
+                    width=7,
+                    arrowshape=(15, 15, 10) 
+                )
+            elif self.movimientosub == 6:#IZQUIERDA
+                #AVANZAR
+                image_draw_x = sub_center_x_left - 0
+                image_draw_y = sub_center_y + 10
+                start_x = image_draw_x - (sub_image_width / 2) + 20 
+                start_y = image_draw_y - (sub_image_height / 2) + 20           
+                end_x = start_x + 120 
+                end_y = start_y 
+                self.motor_canvas.create_line(
+                    start_x, start_y, 
+                    end_x, end_y,
+                    arrow=tk.LAST,        
+                    fill='blue',         
+                    width=7,
+                    arrowshape=(15, 15, 10) # (Tamaño de la punta, Tamaño de la base de la punta, Longitud de la base de la punta)
+                )
+                image_draw_x2 = sub_center_x_left - 0
+                image_draw_y2 = sub_center_y + 120
+                start_x2 = image_draw_x2 - (sub_image_width / 2) + 20
+                start_y2 = image_draw_y2 - (sub_image_height / 2) + 20          
+                end_x2 = start_x2 + 120 
+                end_y2 = start_y2 
+                self.motor_canvas.create_line(
+                    start_x2, start_y2, 
+                    end_x2, end_y2,
+                    arrow=tk.LAST,        
+                    fill='blue',         
+                    width=7,
+                    arrowshape=(15, 15, 10) 
+                )
+            elif self.movimientosub == 5:#SUBE
                 global_arc_color = 'blue'
                 self.motor_canvas.create_arc(origin_bottom[0] - radius, origin_bottom[1] - radius+8, origin_bottom[0] + radius,
                 origin_bottom[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC)
                 self.motor_canvas.create_arc(origin_bottom2[0] - radius, origin_bottom2[1] - radius+8, origin_bottom2[0] + radius,
                 origin_bottom2[1] + radius+8, start=220, extent=100, outline=global_arc_color, width=2, style=tk.ARC)
-            elif self.movimientosub == 5:#BAJA
+                image_draw_x = sub_center_x_left - 80
+                image_draw_y = sub_center_y + 10
+                start_x = image_draw_x - (sub_image_width / 2) 
+                start_y = image_draw_y - (sub_image_height / 2) + 70   
+                start_x = image_draw_x 
+                start_y = image_draw_y + 80 
+                end_x = start_x 
+                end_y = start_y - 120 
+                
+                self.motor_canvas.create_line(
+                    start_x, start_y, 
+                    end_x, end_y,
+                    arrow=tk.LAST,         # Punta de flecha en el punto final (arriba)
+                    fill='dark blue',        
+                    width=6,
+                    arrowshape=(15, 15, 10) 
+                )
+            elif self.movimientosub == 4:#BAJA
                 global_arc_color = 'blue'
                 self.motor_canvas.create_arc(
                     origin_front[0] - radius, origin_front[1] - radius - 6,
@@ -652,7 +716,24 @@ class CameraApp:
                     origin_front2[0] + radius, origin_front2[1] + radius -6,
                     start=40, extent=100, outline=global_arc_color, width=2, style=tk.ARC # Mayor ancho
                 )
-            elif self.movimientosub == 6:#Rotacion izquierda
+                image_draw_x = sub_center_x_left - 80
+                image_draw_y = sub_center_y - 110
+                start_x = image_draw_x - (sub_image_width / 2) 
+                start_y = image_draw_y - (sub_image_height / 2) + 70   
+                start_x = image_draw_x 
+                start_y = image_draw_y + 80 
+                end_x = start_x 
+                end_y = start_y + 120 
+                
+                self.motor_canvas.create_line(
+                    start_x, start_y, 
+                    end_x, end_y,
+                    arrow=tk.LAST,         # Punta de flecha en el punto final (arriba)
+                    fill='dark blue',        
+                    width=6,
+                    arrowshape=(15, 15, 10) 
+                )
+            elif self.movimientosub == 2:#Rotacion izquierda
                 image_draw_x = sub_center_x_left - 130
                 image_draw_y = sub_center_y - 5
                 
@@ -702,7 +783,7 @@ class CameraApp:
                     point3_x, point3_y,
                     fill='red', outline='red'
                 )
-            elif self.movimientosub == 7:#Roracion Derecha
+            elif self.movimientosub == 3:#Roracion Derecha
                 # Coordenadas de la imagen del submarino
                 image_draw_x = sub_center_x_left - 145
                 image_draw_y = sub_center_y - 5
@@ -755,7 +836,6 @@ class CameraApp:
                     point3_x, point3_y,
                     fill='red', outline='red'
                 )
-                
         self.root.after(50, self.update_motores) # Continuar actualizando el radar
 if __name__ == "__main__":
     root = tk.Tk()
