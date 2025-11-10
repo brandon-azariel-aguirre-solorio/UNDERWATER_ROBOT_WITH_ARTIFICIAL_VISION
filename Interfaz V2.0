@@ -8,7 +8,7 @@ import math
 from tkinter import messagebox, ttk
 from PIL import Image, ImageTk
 import serial.tools.list_ports 
-model = YOLO(r'C:\Users\brand\runs\detect\mi_reentrenamiento10\mi_reentrenamiento10\weights\best.pt')
+model = YOLO(r'C:\Users\brand\runs\detect\mi_reentrenamiento12\mi_reentrenamiento12\weights\best.pt')
 
 class CameraApp:
     def __init__(self, root):
@@ -305,7 +305,7 @@ class CameraApp:
         if self.running:
             return
         self.running = True
-        self.capture = cv2.VideoCapture(1) # Asegúrate de que este es el índice correcto de tu cámara
+        self.capture = cv2.VideoCapture(0) # Asegúrate de que este es el índice correcto de tu cámara
         if not self.capture.isOpened():
             messagebox.showerror("Error de Cámara", "No se pudo abrir la cámara. Asegúrate de que esté conectada y no esté en uso.")
             self.running = False
@@ -317,22 +317,22 @@ class CameraApp:
             if ret:
                 results = model(frame)
                 conf_filters = {
-                    'Anguila': 0.85,
+                    'Anguila': 0.90,
                     'Ballena': 0.80,
                     'Cangrejo': 0.15,
-                    'Cocodrilo': 0.70,
+                    'Cocodrilo': 0.60,
                     'Delphin': 0.60,
-                    'Erizo': 0.45,
-                    'Estrella': 0.40,
-                    'Mantarraya': 0.5,
-                    'Medusa': 0.80,
+                    'Erizo': 0.15,
+                    'Estrella': 0.30,
+                    'Mantarraya': 0.45,
+                    'Medusa': 0.90,
                     'Orca': 0.85,
-                    'Pez_Chico': 0.40,
-                    'Pez_Grande': 0.65,
+                    'Pez_Chico': 0.10,
+                    'Pez_Grande': 0.15,
                     'Pez_Mediano': 0.30,
-                    'Pulpo': 0.70,
+                    'Pulpo': 0.40,
                     'Sea_horse': 0.50,
-                    'Tiburon': 0.35,
+                    'Tiburon': 0.25,
                     'Tortuga': 0.75
                 }
     
@@ -345,15 +345,15 @@ class CameraApp:
                     'Delphin': (80, 80, 700, 700),
                     'Erizo': (5, 5, 120, 120),
                     'Estrella': (5, 5, 190, 190),
-                    'Mantarraya': (50, 50, 300, 300),
+                    'Mantarraya': (10, 10, 800, 500),
                     'Medusa': (10, 10, 350, 350),
                     'Orca': (120, 120, 700, 700),
                     'Pez_Chico': (1, 1, 150, 150),
                     'Pez_Grande': (80, 80, 500, 500),
                     'Pez_Mediano': (25, 25, 250, 250),
-                    'Pulpo': (40, 40, 300, 300),
+                    'Pulpo': (20, 20, 600, 600),
                     'Sea_horse': (5, 20, 40, 100),
-                    'Tiburon': (90, 90, 700, 700),
+                    'Tiburon': (90, 90, 900, 900),
                     'Tortuga': (50, 50, 350, 350)
                 }
     
@@ -468,7 +468,6 @@ class CameraApp:
             button_text = "   Automático   "
         self.Automatico.config(fg=text_color, text=button_text)
     def get_color_from_distance(self, distance):
-            """Determina el color de las ondas según la distancia."""
             if distance <= 15:
                 return 'red'
             elif distance <= 25:
