@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
-#define RX_RS485 5  // Pin de recepción RS485
-#define TX_RS485 4  // Pin de transmisión RS485 (no se usará en este caso)
-#define play 9
+#define RX_RS485 9 // Pin de recepción RS485
+#define TX_RS485 8  // Pin de transmisión RS485 (no se usará en este caso)
+#define play 11
 #define luz 10  // Pin de transmisión RS485 (no se usará en este caso)
 String mensaje;
 SoftwareSerial rs485(RX_RS485, TX_RS485);  // RX, TX   // RX, TX
@@ -11,6 +11,7 @@ void setup() {
   Serial.println("Receptor listo...");
   pinMode(play, OUTPUT);
   pinMode(luz, OUTPUT);
+
 }
 
 void loop() {
